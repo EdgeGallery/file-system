@@ -1,0 +1,110 @@
+package controllers
+
+import (
+	"encoding/json"
+	"fileSystem/models"
+	"fileSystem/util"
+	log "github.com/sirupsen/logrus"
+	"os"
+)
+
+type ImageController struct {
+	BaseController
+}
+
+// @Title Get
+// @Description perform local image query operation
+// @Param	imageId 	string
+// @Success 200 ok
+// @Failure 400 bad request
+// @router /imagemangement/v1/image [get]
+func (this *ImageController) Get() {
+	log.Info("Query for local image get request received.")
+
+	clientIp := this.Ctx.Input.IP()
+	err := util.ValidateSrcAddress(clientIp)
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		return
+	}
+
+	this.displayReceivedMsg(clientIp)
+
+	var imageFileDb models.ImageDB
+
+	imageId := this.Ctx.Input.Query("imageId")
+
+	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
+		return
+	}
+
+	filename := imageFileDb.SaveFileName
+	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
+	userId := imageFileDb.UserId
+	storageMedium := imageFileDb.StorageMedium
+	url := imageFileDb.Url
+
+	uploadResp, err := json.Marshal(map[string]string{
+		"imageId":       imageId,
+		"fileName":      filename,
+		"uploadTime":    uploadTime,
+		"userId":        userId,
+		"storageMedium": storageMedium,
+		"url":           url})
+
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
+		return
+	}
+
+	_, _ = this.Ctx.ResponseWriter.Write(uploadResp)
+
+}
+
+// @Title Delete
+// @Description perform local image delete operation
+// @Param	imageId 	string
+// @Success 200 ok
+// @Failure 400 bad request
+// @router /imagemangement/v1/image [delete]
+func (this *ImageController) Delete() {
+	log.Info("Delete local image package request received.")
+	clientIp := this.Ctx.Input.IP()
+	err := util.ValidateSrcAddress(clientIp)
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		return
+	}
+
+	this.displayReceivedMsg(clientIp)
+
+	var imageFileDb models.ImageDB
+
+	imageId := this.Ctx.Input.Query("imageId")
+
+	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
+		return
+	}
+
+	filename := imageFileDb.SaveFileName
+	storageMedium := imageFileDb.StorageMedium
+
+	file:= storageMedium+filename
+
+	err = os.Remove(file)
+	if err !=nil{
+		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
+		return
+	}else {
+		this.Ctx.WriteString("delete success")
+		log.Info("delete file from " + storageMedium)
+	}
+
+
+}
