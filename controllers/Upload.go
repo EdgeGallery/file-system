@@ -136,12 +136,12 @@ func (this *UploadController) Post() {
 		return
 		//修改response code，加错误信息
 	} else {
-		this.Ctx.WriteString("upload success")
+		//this.Ctx.WriteString("upload success")
 		log.Info("save file to " + storageMedium)
 	}
 
 	//feedback download url to user
-	url := "/imagemangement/v1/download?imageId=" + imageId
+	url := "/imagemanagement/v1/download?imageId=" + imageId
 	err = this.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, url)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
