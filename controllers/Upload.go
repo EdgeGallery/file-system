@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Huawei Technologies Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package controllers
 
 import (
@@ -72,12 +88,24 @@ func (this *UploadController) getStorageMedium(priority string) string {
 	}
 }
 
+// @Title Get
+// @Description test connection is ok or not
+// @Success 200 ok
+// @Failure 400 bad request
+// @router /imagemanagement/v1/upload [get]
 func (this *UploadController) Get() {
-
 	log.Info("Upload get request received.")
 	this.Ctx.WriteString("Upload get request received.")
 }
 
+// @Title Post
+// @Description upload file
+// @Param   usrId       form-data 	string	true   "usrId"
+// @Param   priority    form-data   string  true   "priority "
+// @Param   file        form-data 	file	true   "file"
+// @Success 200 ok
+// @Failure 400 bad request
+// @router /imagemanagement/v1/upload [post]
 func (this *UploadController) Post() {
 	log.Info("Upload post request received.")
 
@@ -110,7 +138,7 @@ func (this *UploadController) Post() {
 	}
 	defer file.Close()
 
-	filename := head.Filename  //original name for file
+	filename := head.Filename //original name for file
 
 	//userId := this.Ctx.Input.Query("userId"), 加对userId字段的判断
 
