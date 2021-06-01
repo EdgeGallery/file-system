@@ -35,6 +35,11 @@ const (
 	MaxAppPackageFile      int64  = 536870912000 //fix file size here
 	Operation                     = "] Operation ["
 	Resource                      = " Resource ["
+
+	LocalStoragePath       string = "/usr/vmImage/"
+	FormFile               string = "file"
+	UserId                 string = "userId"
+	Priority               string = "priority"
 )
 
 // Validate file size

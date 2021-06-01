@@ -48,6 +48,10 @@ func (this *ImageController) Get() {
 	var imageFileDb models.ImageDB
 
 	imageId := this.Ctx.Input.Query("imageId")
+	if imageId == ""{
+		this.HandleLoggingForError(clientIp, util.StatusNotFound, "imageId is not right")
+		return
+	}
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
@@ -60,7 +64,6 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
-	url := imageFileDb.Url
 
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
@@ -68,7 +71,7 @@ func (this *ImageController) Get() {
 		"uploadTime":    uploadTime,
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"url":           url})
+		})
 
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")

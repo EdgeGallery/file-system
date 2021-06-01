@@ -27,7 +27,6 @@ type ImageDB struct {
 	UserId        string
 	SaveFileName  string
 	StorageMedium string
-	Url           string
 	UploadTime    time.Time `orm:"auto_now_add;type(datetime)"`
 }
 

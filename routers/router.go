@@ -27,13 +27,6 @@ import (
 func init() {
 	adapter := initDbAdapter()
 
-/*	ns := beego.NewNamespace("/imagemangement/v1/",
-		beego.NSInclude(
-			&controllers.UploadController{controllers.BaseController{Db: adapter}},
-			//&controllers.FileDownloadController{controllers.BaseController{Db: adapter}},
-		),
-	)
-	beego.AddNamespace(ns)*/
 
 	beego.Router("/imagemanagement/v1/upload",&controllers.UploadController{controllers.BaseController{Db: adapter}})
 	beego.Router("/imagemanagement/v1/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
