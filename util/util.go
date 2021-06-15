@@ -29,17 +29,24 @@ const (
 	StatusNotFound            int = 404
 	StatusForbidden           int = 403
 
-	ClientIpaddressInvalid        = "clientIp address is invalid"
-	Default                string = "default"
-	MaxFileNameSize               = 128
-	MaxAppPackageFile      int64  = 536870912000 //fix file size here
-	Operation                     = "] Operation ["
-	Resource                      = " Resource ["
-
-	LocalStoragePath       string = "/usr/vmImage/"
-	FormFile               string = "file"
-	UserId                 string = "userId"
-	Priority               string = "priority"
+	ClientIpaddressInvalid          = "clientIp address is invalid"
+	LastInsertIdNotSupported string = "LastInsertId is not supported by this driver"
+	FailedToDecompress              = "Failed to decompress zip file"
+	FailedToDeleteCache             = "Failed to delete cache file"
+	Default                  string = "default"
+	MaxFileNameSize                 = 128
+	MaxAppPackageFile        int64  = 536870912000 //fix file size here
+	Operation                       = "] Operation ["
+	Resource                        = " Resource ["
+	SingleFile                      = 1
+	TooManyFile                     = 1024
+	FailedToMakeDir                 = "failed to make directory"
+	TooBig                          = 0x6400000
+	SingleFileTooBig                = 0x6400000
+	LocalStoragePath         string = "/usr/vmImage/"
+	FormFile                 string = "file"
+	UserId                   string = "userId"
+	Priority                 string = "priority"
 )
 
 // Validate file size
@@ -64,11 +71,11 @@ func ValidateSrcAddress(id string) error {
 	return nil
 }
 
-// Validate file extenstion
+// Validate file extension
 func ValidateFileExtensionZip(fileName string) error {
 	extension := filepath.Ext(fileName)
-	if extension != ".zip" {
-		return errors.New("file extension is not zip")
+	if extension != ".zip" && extension != ".qcow2" && extension != ".img" {
+		return errors.New("file extension is not supported")
 	}
 	return nil
 }

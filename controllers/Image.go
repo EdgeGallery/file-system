@@ -47,8 +47,8 @@ func (this *ImageController) Get() {
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Query("imageId")
-	if imageId == ""{
+	imageId := this.Ctx.Input.Param(":imageId")
+	if imageId == "" {
 		this.HandleLoggingForError(clientIp, util.StatusNotFound, "imageId is not right")
 		return
 	}
@@ -71,7 +71,7 @@ func (this *ImageController) Get() {
 		"uploadTime":    uploadTime,
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		})
+	})
 
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
@@ -101,7 +101,7 @@ func (this *ImageController) Delete() {
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Query("imageId")
+	imageId := this.Ctx.Input.Param(":imageId")
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
@@ -113,16 +113,26 @@ func (this *ImageController) Delete() {
 	filename := imageFileDb.SaveFileName
 	storageMedium := imageFileDb.StorageMedium
 
-	file:= storageMedium+filename
+	file := storageMedium + filename
 
 	err = os.Remove(file)
-	if err !=nil{
+
+	fileRecord := &models.ImageDB{
+		ImageId: imageId,
+	}
+
+	err = this.Db.DeleteData(fileRecord, "image_id")
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
+		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
 		return
-	}else {
+	} else {
 		this.Ctx.WriteString("delete success")
 		log.Info("delete file from " + storageMedium)
 	}
-
 
 }

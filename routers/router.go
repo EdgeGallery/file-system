@@ -28,9 +28,9 @@ func init() {
 	adapter := initDbAdapter()
 
 
-	beego.Router("/imagemanagement/v1/upload",&controllers.UploadController{controllers.BaseController{Db: adapter}})
-	beego.Router("/imagemanagement/v1/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
-	beego.Router("/imagemanagement/v1/image",&controllers.ImageController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images",&controllers.UploadController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images/:imageId/action/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images/:imageId",&controllers.ImageController{controllers.BaseController{Db: adapter}})
 
 }
 

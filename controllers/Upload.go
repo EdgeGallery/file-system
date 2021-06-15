@@ -17,13 +17,18 @@
 package controllers
 
 import (
+	"archive/zip"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fileSystem/models"
 	"fileSystem/util"
+	"fmt"
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -50,12 +55,12 @@ func createImageID() string {
 func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium string) error {
 
 	fileRecord := &models.ImageDB{
-		ImageId: imageId,
+		ImageId:       imageId,
 		FileName:      fileName,
 		UserId:        userId,
 		SaveFileName:  saveFileName,
 		StorageMedium: storageMedium,
-		}
+	}
 
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 
@@ -83,11 +88,11 @@ func (c *UploadController) getStorageMedium(priority string) string {
 	}
 }
 
-// @Title Post
+// @Title saveByPriority
 // @Description upload file
 // @Param   priority     string  true   "priority "
 // @Param   saveFilename 	string  	true   "file"   eg.9c73996089944709bad8efa7f532aebe1.zip
-func (c *UploadController) saveByPriority(priority string, saveFilename string) error{
+func (c *UploadController) saveByPriority(priority string, saveFilename string) error {
 	switch {
 	case priority == "A":
 		return errors.New("sorry, this storage medium is not supported right now")
@@ -112,11 +117,136 @@ func (c *UploadController) saveByPriority(priority string, saveFilename string) 
 	}
 }
 
+/*// @Title compress
+// @Description make file to zip file
+// @Param  srcDir string  eg. "F:\\dumps"
+// @Param   saveFilename 	string    eg."F:\\dumps.zip"
+func (c *UploadController) compress(dir string, zipFile string) {
+	fz, err := os.Create(zipFile)
+	if err != nil {
+		log.Fatalf("Create zip file failed: %s\n", err.Error())
+	}
+	defer fz.Close()
+
+	w := zip.NewWriter(fz)
+	defer w.Close()
+
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			fDest, err := w.Create(path[len(dir)+1:])
+			if err != nil {
+				log.Printf("Create failed: %s\n", err.Error())
+				return nil
+			}
+			fSrc, err := os.Open(path)
+			if err != nil {
+				log.Printf("Open failed: %s\n", err.Error())
+				return nil
+			}
+			defer fSrc.Close()
+			_, err = io.Copy(fDest, fSrc)
+			if err != nil {
+				log.Printf("Copy failed: %s\n", err.Error())
+				return nil
+			}
+		}
+		return nil
+	})
+}*/
+
+
+//压缩文件
+//files 文件数组，可以是不同dir下的文件或者文件夹
+//dest 压缩文件存放地址
+func Compress(files []*os.File, dest string) error {
+	d, _ := os.Create(dest)
+	defer d.Close()
+	w := zip.NewWriter(d)
+	defer w.Close()
+	for _, file := range files {
+		err := compress(file, "", w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func compress(file *os.File, prefix string, zw *zip.Writer) error {
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		prefix = prefix + "/" + info.Name()
+		fileInfos, err := file.Readdir(-1)
+		if err != nil {
+			return err
+		}
+		for _, fi := range fileInfos {
+			f, err := os.Open(file.Name() + "/" + fi.Name())
+			if err != nil {
+				return err
+			}
+			err = compress(f, prefix, zw)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		header, err := zip.FileInfoHeader(info)
+		header.Name = prefix + "/" + header.Name
+		if err != nil {
+			return err
+		}
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, file)
+		file.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
+// 编写一个函数，接收两个文件路径:
+//srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
+//dstFile := "e:/Go/tools/copyFileTest02.pdf" -- 目标文件路径
+func copyFile(srcFileName string, dstFileName string) (written int64, err error) {
+	srcFile, err := os.Open(srcFileName)
+	if err != nil {
+		fmt.Printf("open file error = %v\n", err)
+	}
+	defer srcFile.Close()
+
+	//通过srcFile，获取到READER
+	reader := bufio.NewReader(srcFile)
+
+	//打开dstFileName
+	dstFile, err := os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Printf("open file error = %v\n", err)
+		return
+	}
+
+	//通过dstFile，获取到WRITER
+	writer := bufio.NewWriter(dstFile)
+	//writer.Flush()
+
+	defer dstFile.Close()
+
+	return io.Copy(writer, reader)
+}
+
 // @Title Get
 // @Description test connection is ok or not
 // @Success 200 ok
 // @Failure 400 bad request
-// @router /imagemanagement/v1/upload [get]
+// @router "/image-management/v1/images [get]
 func (c *UploadController) Get() {
 	log.Info("Upload get request received.")
 	c.Ctx.WriteString("Upload get request received.")
@@ -129,7 +259,7 @@ func (c *UploadController) Get() {
 // @Param   file        form-data 	file	true   "file"
 // @Success 200 ok
 // @Failure 400 bad request
-// @router /imagemanagement/v1/upload [post]
+// @router "/image-management/v1/images [post]
 func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
 
@@ -162,7 +292,7 @@ func (c *UploadController) Post() {
 	}
 	defer file.Close()
 
-	filename := head.Filename //original name for file
+	filename := head.Filename //original name for file   1.zip or 1.qcow2
 
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
@@ -173,12 +303,58 @@ func (c *UploadController) Post() {
 	//get a storage medium to let fe know
 	storageMedium := c.getStorageMedium(priority)
 
-	saveFileName := imageId + filename     //9c73996089944709bad8efa7f532aebe+1.zip
+	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
 
 	err = c.saveByPriority(priority, saveFileName)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
 		return
+	}
+
+	//if file is not zip file, compress it to zip
+	if filepath.Ext(head.Filename) != ".zip" {
+		f1, err := os.Open(storageMedium + saveFileName)
+		if err != nil {
+			log.Error("failed to open upload file")
+			return
+		}
+
+		var files = []*os.File{f1}
+		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(head.Filename)) //9c73996089944709bad8efa7f532aebe+1
+
+		err = Compress(files,storageMedium + newSaveFileName+".zip")
+		if err != nil {
+			log.Error("failed to compress upload file")
+			return
+		}
+
+		err = os.Remove(storageMedium+saveFileName)
+		if err != nil{
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			return
+		}
+/*
+		newZipPath := storageMedium + newSaveFileName + "/" // "/usr/vmImage/" + 9c73996089944709bad8efa7f532aebe+1 + /
+		err = createDirectory(newZipPath)
+		if err != nil {
+			log.Error("failed to create file path" + newZipPath)
+			return
+		}
+
+		srcFile := storageMedium + saveFileName
+		dstFile := newZipPath + saveFileName
+
+		//srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
+		//dstFile := "e:/Go/tools/copyFileTest02.pdf" -- 目标文件路径
+		_, err = copyFile(srcFile, dstFile)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to copy package")
+			return
+		}
+
+		// "F:\\dumps"  "F:\\dumps.zip"
+		c.compress(newZipPath, newSaveFileName+".zip") //9c73996089944709bad8efa7f532aebe+1.zip*/
+		saveFileName = newSaveFileName + ".zip"
 	}
 
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium)
@@ -193,7 +369,7 @@ func (c *UploadController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		})
+	})
 
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
