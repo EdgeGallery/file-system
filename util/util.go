@@ -72,9 +72,9 @@ func ValidateSrcAddress(id string) error {
 }
 
 // Validate file extension
-func ValidateFileExtensionZip(fileName string) error {
+func ValidateFileExtension(fileName string) error {
 	extension := filepath.Ext(fileName)
-	if extension != ".zip" && extension != ".qcow2" && extension != ".img" {
+	if extension != ".zip" && extension != ".qcow2" && extension != ".img" &&extension!=".iso" {
 		return errors.New("file extension is not supported")
 	}
 	return nil

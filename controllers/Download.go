@@ -17,13 +17,11 @@ package controllers
 
 import (
 	"archive/zip"
-	"errors"
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -44,58 +42,7 @@ func (this *DownloadController) PathCheck(path string) bool {
 	return false
 }
 
-/*//解压
-func DeCompress(zipFile, dest string) error {
-	reader, err := zip.OpenReader(zipFile)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	for _, file := range reader.File {
-		rc, err := file.Open()
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-		filename := dest + file.Name
-		err = os.MkdirAll(getDir(filename), 0755)
-		if err != nil {
-			return err
-		}
-		w, err := os.Create(filename)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
-		_, err = io.Copy(w, rc)
-		if err != nil {
-			return err
-		}
-		w.Close()
-		rc.Close()
-	}
-	return nil
-}
-
-func getDir(path string) string {
-	return subString(path, 0, strings.LastIndex(path, "/"))
-}
-
-func subString(str string, start, end int) string {
-	rs := []rune(str)
-	length := len(rs)
-
-	if start < 0 || start > length {
-		panic("start is wrong")
-	}
-
-	if end < start || end > length {
-		panic("end is wrong")
-	}
-
-	return string(rs[start:end])
-}*/
-
+/*
 // extract zip package
 func (this *DownloadController) extractZipPackage(packagePath string) (string, error) {
 	zipReader, err := zip.OpenReader(packagePath)
@@ -168,6 +115,62 @@ func (this *DownloadController) extractFiles(file *zip.File, zippedFile io.ReadC
 		totalWrote += wt
 	}
 	return false, totalWrote
+}*/
+
+//解压
+func DeCompress(zipFile, dest string) ([]string, error) {
+	var res []string
+	reader, err := zip.OpenReader(zipFile)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+		filename := dest + "/" + file.Name
+		err = os.MkdirAll(getDir(filename), 0755)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(filename)-1 == strings.LastIndex(filename, "/") {
+			continue
+		}
+		w, err := os.Create(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer w.Close()
+		_, err = io.Copy(w, rc)
+		res = append(res, filename)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func getDir(path string) string {
+	return subString(path, 0, strings.LastIndex(path, "/"))
+}
+
+func subString(str string, start, end int) string {
+	rs := []rune(str)
+	length := len(rs)
+
+	if start < 0 || start > length {
+		panic("start is wrong")
+	}
+
+	if end < start || end > length {
+		panic("end is wrong")
+	}
+
+	return string(rs[start:end])
 }
 
 // @Title Get
@@ -211,18 +214,22 @@ func (this *DownloadController) Get() {
 
 	downloadPath := filePath + fileName
 
-	if this.Ctx.Input.Query("iszip") == "true" {
-		downloadName := strings.TrimSuffix(originalName,filepath.Ext(originalName)) + ".zip"
+	if this.Ctx.Input.Query("isZip") == "true" {
+		downloadName := strings.TrimSuffix(originalName, filepath.Ext(originalName)) + ".zip"
 		this.Ctx.Output.Download(downloadPath, downloadName)
 	} else {
-		newPath, err := this.extractZipPackage(downloadPath)
+		saveName := strings.TrimSuffix(originalName, filepath.Ext(originalName))
+		arr,err := DeCompress(downloadPath, filePath+saveName)
 		if err != nil {
 			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
 			return
 		}
-		downloadPath = newPath + "/" + imageId + originalName
+
+		downloadPath = arr[0]
+		originalName = subString(downloadPath,strings.LastIndex(downloadPath,"/")+1,len(downloadPath))
 		this.Ctx.Output.Download(downloadPath, originalName)
-		err = os.Remove(downloadPath)
+
+		err = os.RemoveAll(filePath + saveName)
 		if err != nil {
 			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
 			return

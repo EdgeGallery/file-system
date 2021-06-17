@@ -154,7 +154,6 @@ func (c *UploadController) compress(dir string, zipFile string) {
 	})
 }*/
 
-
 //压缩文件
 //files 文件数组，可以是不同dir下的文件或者文件夹
 //dest 压缩文件存放地址
@@ -178,7 +177,7 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 		return err
 	}
 	if info.IsDir() {
-		prefix = prefix + "/" + info.Name()
+		prefix = prefix + info.Name()+"/"
 		fileInfos, err := file.Readdir(-1)
 		if err != nil {
 			return err
@@ -189,13 +188,14 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 				return err
 			}
 			err = compress(f, prefix, zw)
+			file.Close()
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		header, err := zip.FileInfoHeader(info)
-		header.Name = prefix + "/" + header.Name
+		header.Name = prefix + header.Name
 		if err != nil {
 			return err
 		}
@@ -211,7 +211,6 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 	}
 	return nil
 }
-
 
 // 编写一个函数，接收两个文件路径:
 //srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
@@ -278,7 +277,7 @@ func (c *UploadController) Post() {
 		return
 	}
 
-	err = util.ValidateFileExtensionZip(head.Filename)
+	err = util.ValidateFileExtension(head.Filename)
 	if err != nil || len(head.Filename) > util.MaxFileNameSize {
 		c.HandleLoggingForError(clientIp, util.BadRequest,
 			"File shouldn't contains any extension or filename is larger than max size")
@@ -313,7 +312,19 @@ func (c *UploadController) Post() {
 
 	//if file is not zip file, compress it to zip
 	if filepath.Ext(head.Filename) != ".zip" {
-		f1, err := os.Open(storageMedium + saveFileName)
+		originalName := strings.TrimSuffix(filename, filepath.Ext(filename))
+		zipFilePath := storageMedium + originalName
+		err = createDirectory(zipFilePath)
+		if err != nil {
+			log.Error("when compress, failed to create file path to" + zipFilePath)
+			return
+		}
+		_, err = copyFile(storageMedium+saveFileName, zipFilePath+"/"+filename)
+		if err != nil {
+			log.Error("when compress, failed to create file path to" + zipFilePath)
+			return
+		}
+		f1, err := os.Open(zipFilePath)
 		if err != nil {
 			log.Error("failed to open upload file")
 			return
@@ -322,38 +333,22 @@ func (c *UploadController) Post() {
 		var files = []*os.File{f1}
 		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(head.Filename)) //9c73996089944709bad8efa7f532aebe+1
 
-		err = Compress(files,storageMedium + newSaveFileName+".zip")
+		err = Compress(files, storageMedium+newSaveFileName+".zip")
 		if err != nil {
 			log.Error("failed to compress upload file")
 			return
 		}
 
-		err = os.Remove(storageMedium+saveFileName)
-		if err != nil{
+		err = os.Remove(storageMedium + saveFileName)
+		if err != nil {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
 			return
 		}
-/*
-		newZipPath := storageMedium + newSaveFileName + "/" // "/usr/vmImage/" + 9c73996089944709bad8efa7f532aebe+1 + /
-		err = createDirectory(newZipPath)
+		err = os.RemoveAll(zipFilePath)
 		if err != nil {
-			log.Error("failed to create file path" + newZipPath)
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
 			return
 		}
-
-		srcFile := storageMedium + saveFileName
-		dstFile := newZipPath + saveFileName
-
-		//srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
-		//dstFile := "e:/Go/tools/copyFileTest02.pdf" -- 目标文件路径
-		_, err = copyFile(srcFile, dstFile)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to copy package")
-			return
-		}
-
-		// "F:\\dumps"  "F:\\dumps.zip"
-		c.compress(newZipPath, newSaveFileName+".zip") //9c73996089944709bad8efa7f532aebe+1.zip*/
 		saveFileName = newSaveFileName + ".zip"
 	}
 
