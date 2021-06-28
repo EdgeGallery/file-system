@@ -1,3 +1,18 @@
+/*
+ * Copyright 2021 Huawei Technologies Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package controllers
 
 import (
@@ -32,7 +47,11 @@ func (this *ImageController) Get() {
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Query("imageId")
+	imageId := this.Ctx.Input.Param(":imageId")
+	if imageId == "" {
+		this.HandleLoggingForError(clientIp, util.StatusNotFound, "imageId is not right")
+		return
+	}
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
@@ -45,7 +64,6 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
-	url := imageFileDb.Url
 
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
@@ -53,7 +71,7 @@ func (this *ImageController) Get() {
 		"uploadTime":    uploadTime,
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"url":           url})
+	})
 
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
@@ -83,7 +101,7 @@ func (this *ImageController) Delete() {
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Query("imageId")
+	imageId := this.Ctx.Input.Param(":imageId")
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
@@ -95,16 +113,26 @@ func (this *ImageController) Delete() {
 	filename := imageFileDb.SaveFileName
 	storageMedium := imageFileDb.StorageMedium
 
-	file:= storageMedium+filename
+	file := storageMedium + filename
 
 	err = os.Remove(file)
-	if err !=nil{
+
+	fileRecord := &models.ImageDB{
+		ImageId: imageId,
+	}
+
+	err = this.Db.DeleteData(fileRecord, "image_id")
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
+		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
 		return
-	}else {
+	} else {
 		this.Ctx.WriteString("delete success")
 		log.Info("delete file from " + storageMedium)
 	}
-
 
 }

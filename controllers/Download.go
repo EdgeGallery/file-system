@@ -1,9 +1,29 @@
+/*
+ * Copyright 2021 Huawei Technologies Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package controllers
 
 import (
+	"archive/zip"
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 //下载文件
@@ -11,7 +31,154 @@ type DownloadController struct {
 	BaseController
 }
 
+func (this *DownloadController) PathCheck(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
 
+/*
+// extract zip package
+func (this *DownloadController) extractZipPackage(packagePath string) (string, error) {
+	zipReader, err := zip.OpenReader(packagePath)
+	if err != nil {
+		return "", errors.New("fail to open zip file")
+	}
+	if len(zipReader.File) != util.SingleFile {
+		return "", errors.New("only support one image file in zip")
+	}
+
+	var totalWrote int64
+	packageDir := path.Dir(packagePath) //destination path for file to save in linux
+	err = os.MkdirAll(packageDir, 0750)
+	if err != nil {
+		log.Error(util.FailedToMakeDir)
+		return "", errors.New(util.FailedToMakeDir)
+	}
+	for _, file := range zipReader.Reader.File {
+
+		zippedFile, err := file.Open()
+		if err != nil || zippedFile == nil {
+			log.Error("Failed to open zip file")
+			continue
+		}
+		if file.UncompressedSize64 > util.SingleFileTooBig || totalWrote > util.TooBig {
+			log.Error("File size limit is exceeded")
+		}
+
+		defer zippedFile.Close()
+
+		isContinue, wrote := this.extractFiles(file, zippedFile, totalWrote, packageDir)
+		if isContinue {
+			continue
+		}
+		totalWrote = wrote
+	}
+	return packageDir, nil
+}
+
+// Extract files
+func (this *DownloadController) extractFiles(file *zip.File, zippedFile io.ReadCloser, totalWrote int64, dirName string) (bool, int64) {
+	targetDir := dirName
+	extractedFilePath := filepath.Join(
+		targetDir,
+		file.Name,
+	)
+
+	if file.FileInfo().IsDir() {
+		err := os.MkdirAll(extractedFilePath, 0750)
+		if err != nil {
+			log.Error("Failed to create directory")
+		}
+	} else {
+		outputFile, err := os.OpenFile(
+			extractedFilePath,
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+			0750,
+		)
+		if err != nil || outputFile == nil {
+			log.Error("The output file is nil")
+			return true, totalWrote
+		}
+
+		defer outputFile.Close()
+
+		wt, err := io.Copy(outputFile, zippedFile)
+		if err != nil {
+			log.Error("Failed to copy zipped file")
+		}
+		totalWrote += wt
+	}
+	return false, totalWrote
+}*/
+
+//解压
+func DeCompress(zipFile, dest string) ([]string, error) {
+	var res []string
+	reader, err := zip.OpenReader(zipFile)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+		filename := dest + "/" + file.Name
+		err = os.MkdirAll(getDir(filename), 0755)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(filename)-1 == strings.LastIndex(filename, "/") {
+			continue
+		}
+		w, err := os.Create(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer w.Close()
+		_, err = io.Copy(w, rc)
+		res = append(res, filename)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func getDir(path string) string {
+	return subString(path, 0, strings.LastIndex(path, "/"))
+}
+
+func subString(str string, start, end int) string {
+	rs := []rune(str)
+	length := len(rs)
+
+	if start < 0 || start > length {
+		panic("start is wrong")
+	}
+
+	if end < start || end > length {
+		panic("end is wrong")
+	}
+
+	return string(rs[start:end])
+}
+
+// @Title Get
+// @Description Download file
+// @Param   imageId        path 	string	true   "imageId"
+// @Success 200 ok
+// @Failure 400 bad request
+// @router /imagemanagement/v1/download [get]
 func (this *DownloadController) Get() {
 	log.Info("Download get request received.")
 
@@ -26,7 +193,7 @@ func (this *DownloadController) Get() {
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Query("imageId")
+	imageId := this.Ctx.Input.Param(":imageId")
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
@@ -37,9 +204,9 @@ func (this *DownloadController) Get() {
 	}
 
 	filePath := imageFileDb.StorageMedium
-	err = createDirectory(filePath)
-	if err != nil {
-		log.Error("failed to create file path" + filePath)
+	if !this.PathCheck(filePath) {
+		this.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
+		return
 	}
 
 	fileName := imageFileDb.SaveFileName
@@ -47,24 +214,26 @@ func (this *DownloadController) Get() {
 
 	downloadPath := filePath + fileName
 
-	//第一个参数是文件的地址，第二个参数是下载显示的文件的名称
-	//this.Ctx.Output.Download("static/healthcheck工作计划.xlsx", "1.xlsx")
+	if this.Ctx.Input.Query("isZip") == "true" {
+		downloadName := strings.TrimSuffix(originalName, filepath.Ext(originalName)) + ".zip"
+		this.Ctx.Output.Download(downloadPath, downloadName)
+	} else {
+		saveName := strings.TrimSuffix(originalName, filepath.Ext(originalName))
+		arr,err := DeCompress(downloadPath, filePath+saveName)
+		if err != nil {
+			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
+			return
+		}
 
-	//加文件下载路径
-	this.Ctx.Output.Download(downloadPath,originalName)
+		downloadPath = arr[0]
+		originalName = subString(downloadPath,strings.LastIndex(downloadPath,"/")+1,len(downloadPath))
+		this.Ctx.Output.Download(downloadPath, originalName)
 
-	/*this.Ctx.WriteString("download success")
-	log.Info("save file to " + downloadPath)*/
-	//this.Ctx.Output.Download("/usr/vmImage/1.zip", "download.zip")
-
-	/*downloadResp, err := json.Marshal(map[string]string{
-		"imageId":    imageId,
-		"uploadTime": time.Now().Format("2006-01-02 15:04:05"),
-		"download":   downloadPath})
-
-	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return download details")
-		return
+		err = os.RemoveAll(filePath + saveName)
+		if err != nil {
+			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			return
+		}
 	}
-	_, _ = this.Ctx.ResponseWriter.Write(downloadResp)*/
+
 }

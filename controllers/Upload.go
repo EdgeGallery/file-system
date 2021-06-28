@@ -1,13 +1,34 @@
+/*
+ * Copyright 2021 Huawei Technologies Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package controllers
 
 import (
+	"archive/zip"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fileSystem/models"
 	"fileSystem/util"
+	"fmt"
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -15,11 +36,6 @@ import (
 type UploadController struct {
 	BaseController
 }
-
-/*var (
-	PackageFolderPath string //写到enev
-	//PackageFolderPath = "static/"
-)*/
 
 func createDirectory(dir string) error { //make dir if path doesn't exist
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -36,7 +52,7 @@ func createImageID() string {
 	return strings.Replace(uuId.String(), "-", "", -1)
 }
 
-func (this *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, url string) error {
+func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium string) error {
 
 	fileRecord := &models.ImageDB{
 		ImageId:       imageId,
@@ -44,9 +60,9 @@ func (this *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId
 		UserId:        userId,
 		SaveFileName:  saveFileName,
 		StorageMedium: storageMedium,
-		Url:           url}
+	}
 
-	err := this.Db.InsertOrUpdateData(fileRecord, "image_id")
+	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 
 	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
 		log.Error("Failed to save file record to database.")
@@ -58,91 +74,285 @@ func (this *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId
 }
 
 //add more storage logic here
-func (this *UploadController) getStorageMedium(priority string) string {
+func (c *UploadController) getStorageMedium(priority string) string {
 	switch {
-	case priority == "1":
+	case priority == "A":
 		return "huaweiCloud"
 
-	case priority == "2":
-		return "AWS"
+	case priority == "B":
+		return "Azure"
 
 	default:
-		defaultPath := "/usr/vmImage/"
+		defaultPath := util.LocalStoragePath
 		return defaultPath
 	}
 }
 
-func (this *UploadController) Get() {
+// @Title saveByPriority
+// @Description upload file
+// @Param   priority     string  true   "priority "
+// @Param   saveFilename 	string  	true   "file"   eg.9c73996089944709bad8efa7f532aebe1.zip
+func (c *UploadController) saveByPriority(priority string, saveFilename string) error {
+	switch {
+	case priority == "A":
+		return errors.New("sorry, this storage medium is not supported right now")
 
-	log.Info("Upload get request received.")
-	this.Ctx.WriteString("Upload get request received.")
+	default:
+		defaultPath := util.LocalStoragePath
+
+		err := createDirectory(defaultPath)
+		if err != nil {
+			log.Error("failed to create file path" + defaultPath)
+			return err
+		}
+
+		err = c.SaveToFile(util.FormFile, defaultPath+saveFilename)
+		if err != nil {
+			c.writeErrorResponse("fail to upload package", util.StatusInternalServerError)
+			return err
+		} else {
+			log.Info("save file to " + defaultPath)
+			return nil
+		}
+	}
 }
 
-func (this *UploadController) Post() {
+/*// @Title compress
+// @Description make file to zip file
+// @Param  srcDir string  eg. "F:\\dumps"
+// @Param   saveFilename 	string    eg."F:\\dumps.zip"
+func (c *UploadController) compress(dir string, zipFile string) {
+	fz, err := os.Create(zipFile)
+	if err != nil {
+		log.Fatalf("Create zip file failed: %s\n", err.Error())
+	}
+	defer fz.Close()
+
+	w := zip.NewWriter(fz)
+	defer w.Close()
+
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			fDest, err := w.Create(path[len(dir)+1:])
+			if err != nil {
+				log.Printf("Create failed: %s\n", err.Error())
+				return nil
+			}
+			fSrc, err := os.Open(path)
+			if err != nil {
+				log.Printf("Open failed: %s\n", err.Error())
+				return nil
+			}
+			defer fSrc.Close()
+			_, err = io.Copy(fDest, fSrc)
+			if err != nil {
+				log.Printf("Copy failed: %s\n", err.Error())
+				return nil
+			}
+		}
+		return nil
+	})
+}*/
+
+//压缩文件
+//files 文件数组，可以是不同dir下的文件或者文件夹
+//dest 压缩文件存放地址
+func Compress(files []*os.File, dest string) error {
+	d, _ := os.Create(dest)
+	defer d.Close()
+	w := zip.NewWriter(d)
+	defer w.Close()
+	for _, file := range files {
+		err := compress(file, "", w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func compress(file *os.File, prefix string, zw *zip.Writer) error {
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		prefix = prefix + info.Name()+"/"
+		fileInfos, err := file.Readdir(-1)
+		if err != nil {
+			return err
+		}
+		for _, fi := range fileInfos {
+			f, err := os.Open(file.Name() + "/" + fi.Name())
+			if err != nil {
+				return err
+			}
+			err = compress(f, prefix, zw)
+			file.Close()
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		header, err := zip.FileInfoHeader(info)
+		header.Name = prefix + header.Name
+		if err != nil {
+			return err
+		}
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, file)
+		file.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// 编写一个函数，接收两个文件路径:
+//srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
+//dstFile := "e:/Go/tools/copyFileTest02.pdf" -- 目标文件路径
+func copyFile(srcFileName string, dstFileName string) (written int64, err error) {
+	srcFile, err := os.Open(srcFileName)
+	if err != nil {
+		fmt.Printf("open file error = %v\n", err)
+	}
+	defer srcFile.Close()
+
+	//通过srcFile，获取到READER
+	reader := bufio.NewReader(srcFile)
+
+	//打开dstFileName
+	dstFile, err := os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Printf("open file error = %v\n", err)
+		return
+	}
+
+	//通过dstFile，获取到WRITER
+	writer := bufio.NewWriter(dstFile)
+	//writer.Flush()
+
+	defer dstFile.Close()
+
+	return io.Copy(writer, reader)
+}
+
+// @Title Get
+// @Description test connection is ok or not
+// @Success 200 ok
+// @Failure 400 bad request
+// @router "/image-management/v1/images [get]
+func (c *UploadController) Get() {
+	log.Info("Upload get request received.")
+	c.Ctx.WriteString("Upload get request received.")
+}
+
+// @Title Post
+// @Description upload file
+// @Param   usrId       form-data 	string	true   "usrId"
+// @Param   priority    form-data   string  true   "priority "
+// @Param   file        form-data 	file	true   "file"
+// @Success 200 ok
+// @Failure 400 bad request
+// @router "/image-management/v1/images [post]
+func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
 
-	clientIp := this.Ctx.Input.IP()
+	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
 		return
 	}
 
-	this.displayReceivedMsg(clientIp)
+	c.displayReceivedMsg(clientIp)
 
-	file, head, err := this.GetFile("file")
+	file, head, err := c.GetFile("file")
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
+		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
 		return
 	}
 
-	err = util.ValidateFileExtensionZip(head.Filename)
+	err = util.ValidateFileExtension(head.Filename)
 	if err != nil || len(head.Filename) > util.MaxFileNameSize {
-		this.HandleLoggingForError(clientIp, util.BadRequest,
+		c.HandleLoggingForError(clientIp, util.BadRequest,
 			"File shouldn't contains any extension or filename is larger than max size")
 		return
 	}
 
 	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
+		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
 		return
 	}
 	defer file.Close()
 
-	filename := head.Filename  //original name for file
+	filename := head.Filename //original name for file   1.zip or 1.qcow2
 
-	//userId := this.Ctx.Input.Query("userId"), 加对userId字段的判断
+	userId := c.GetString(util.UserId)
+	priority := c.GetString(util.Priority)
 
-	userId := this.GetString("userId")
-	priority := this.GetString("priority")
-
-	//创建imageId,fileName, uploadTime, userId
+	//create imageId, fileName, uploadTime, userId
 	imageId := createImageID()
 
-	//change
-	storageMedium := this.getStorageMedium(priority)
+	//get a storage medium to let fe know
+	storageMedium := c.getStorageMedium(priority)
 
-	err = createDirectory(storageMedium)
+	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
+
+	err = c.saveByPriority(priority, saveFileName)
 	if err != nil {
-		log.Error("failed to create file path" + storageMedium)
-	}
-
-	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+1.zip
-	err = this.SaveToFile("file", storageMedium+saveFileName)
-
-	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
 		return
-		//修改response code，加错误信息
-	} else {
-		this.Ctx.WriteString("upload success")
-		log.Info("save file to " + storageMedium)
 	}
 
-	//feedback download url to user
-	url := "/imagemangement/v1/download?imageId=" + imageId
-	err = this.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, url)
+	//if file is not zip file, compress it to zip
+	if filepath.Ext(head.Filename) != ".zip" {
+		originalName := strings.TrimSuffix(filename, filepath.Ext(filename))
+		zipFilePath := storageMedium + originalName
+		err = createDirectory(zipFilePath)
+		if err != nil {
+			log.Error("when compress, failed to create file path to" + zipFilePath)
+			return
+		}
+		_, err = copyFile(storageMedium+saveFileName, zipFilePath+"/"+filename)
+		if err != nil {
+			log.Error("when compress, failed to create file path to" + zipFilePath)
+			return
+		}
+		f1, err := os.Open(zipFilePath)
+		if err != nil {
+			log.Error("failed to open upload file")
+			return
+		}
+
+		var files = []*os.File{f1}
+		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(head.Filename)) //9c73996089944709bad8efa7f532aebe+1
+
+		err = Compress(files, storageMedium+newSaveFileName+".zip")
+		if err != nil {
+			log.Error("failed to compress upload file")
+			return
+		}
+
+		err = os.Remove(storageMedium + saveFileName)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			return
+		}
+		err = os.RemoveAll(zipFilePath)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			return
+		}
+		saveFileName = newSaveFileName + ".zip"
+	}
+
+	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
@@ -154,13 +364,13 @@ func (this *UploadController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"url":           url})
+	})
 
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
 
-	_, _ = this.Ctx.ResponseWriter.Write(uploadResp)
+	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
 }

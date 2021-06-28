@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Huawei Technologies Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package routers
 
 import (
@@ -11,17 +27,10 @@ import (
 func init() {
 	adapter := initDbAdapter()
 
-/*	ns := beego.NewNamespace("/imagemangement/v1/",
-		beego.NSInclude(
-			&controllers.UploadController{controllers.BaseController{Db: adapter}},
-			//&controllers.FileDownloadController{controllers.BaseController{Db: adapter}},
-		),
-	)
-	beego.AddNamespace(ns)*/
 
-	beego.Router("/imagemangement/v1/upload",&controllers.UploadController{controllers.BaseController{Db: adapter}})
-	beego.Router("/imagemangement/v1/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
-	beego.Router("/imagemangement/v1/image",&controllers.ImageController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images",&controllers.UploadController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images/:imageId/action/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images/:imageId",&controllers.ImageController{controllers.BaseController{Db: adapter}})
 
 }
 
