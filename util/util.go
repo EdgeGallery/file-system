@@ -19,7 +19,9 @@ import (
 	"errors"
 	"github.com/astaxie/beego"
 	"github.com/go-playground/validator/v10"
+	"os"
 	"path/filepath"
+	"regexp"
 )
 
 const (
@@ -47,6 +49,15 @@ const (
 	FormFile                 string = "file"
 	UserId                   string = "userId"
 	Priority                 string = "priority"
+	DriverName               string = "postgres"
+	SslMode                  string = "disable"
+	minPasswordSize         = 8
+	maxPasswordSize         = 16
+	maxPasswordCount        = 2
+	singleDigitRegex string = `\d`
+	lowerCaseRegex   string = `[a-z]`
+	upperCaseRegex   string = `[A-Z]`
+	specialCharRegex string = `['~!@#$%^&()-_=+\|[{}\];:'",<.>/?]`
 )
 
 // Validate file size
@@ -83,4 +94,85 @@ func ValidateFileExtension(fileName string) error {
 // Get app configuration
 func GetAppConfig(k string) string {
 	return beego.AppConfig.String(k)
+}
+
+
+// Get db user
+func GetDbUser() string {
+	dbUser := os.Getenv("POSTGRES_USERNAME")
+	return dbUser
+}
+
+// Get database name
+func GetDbName() string {
+	dbName := os.Getenv("POSTGRES_DB_NAME")
+	return dbName
+}
+
+// Get database host
+func GetDbHost() string {
+	dbHost := os.Getenv("POSTGRES_HOST")
+	return dbHost
+}
+
+// Get database port
+func GetDbPort() string {
+	dbPort := os.Getenv("POSTGRES_PORT")
+	return dbPort
+}
+
+// Clear byte array from memory
+func ClearByteArray(data []byte) {
+	for i := 0; i < len(data); i++ {
+		data[i] = 0
+	}
+}
+
+// Validate db parameters
+func ValidateDbParams(dbPwd string) (bool, error) {
+	dbPwdBytes := []byte(dbPwd)
+	dbPwdIsValid, validateDbPwdErr := ValidatePassword(&dbPwdBytes)
+	if validateDbPwdErr != nil || !dbPwdIsValid {
+		return dbPwdIsValid, validateDbPwdErr
+	}
+	return true, nil
+}
+
+// Validate password
+func ValidatePassword(password *[]byte) (bool, error) {
+	if len(*password) >= minPasswordSize && len(*password) <= maxPasswordSize {
+		// password must satisfy any two conditions
+		pwdValidCount := GetPasswordValidCount(password)
+		if pwdValidCount < maxPasswordCount {
+			return false, errors.New("password must contain at least two types of the either one lowercase" +
+				" character, one uppercase character, one digit or one special character")
+		}
+	} else {
+		return false, errors.New("password must have minimum length of 8 and maximum of 16")
+	}
+	return true, nil
+}
+
+// To get password valid count
+func GetPasswordValidCount(password *[]byte) int {
+	var pwdValidCount = 0
+	pwdIsValid, err := regexp.Match(singleDigitRegex, *password)
+	if pwdIsValid && err == nil {
+		pwdValidCount++
+	}
+	pwdIsValid, err = regexp.Match(lowerCaseRegex, *password)
+	if pwdIsValid && err == nil {
+		pwdValidCount++
+	}
+	pwdIsValid, err = regexp.Match(upperCaseRegex, *password)
+	if pwdIsValid && err == nil {
+		pwdValidCount++
+	}
+	// space validation for password complexity is not added
+	// as jwt decrypt fails if space is included in password
+	pwdIsValid, err = regexp.Match(specialCharRegex, *password)
+	if pwdIsValid && err == nil {
+		pwdValidCount++
+	}
+	return pwdValidCount
 }

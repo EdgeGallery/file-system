@@ -17,11 +17,15 @@
 package dbAdpater
 
 import (
+	"errors"
 	"fileSystem/util"
 	"fmt"
 	"github.com/astaxie/beego/orm"
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
+	"os"
+	"strings"
+	"unsafe"
 )
 
 //Pg database
@@ -102,24 +106,51 @@ func (db *PgDb) LoadRelated(md interface{}, name string) (int64, error) {
 }
 
 func (db *PgDb) InitDatabase() error {
+	dbUser := util.GetDbUser()
+	dbPwd := []byte(os.Getenv("POSTGRES_PASSWORD"))
+	dbName := util.GetDbName()
+	dbHost := util.GetDbHost()
+	dbPort := util.GetDbPort()
+	dbSslMode := util.SslMode
+	//dbSslRootCert := DB_SSL_ROOT_CER
+
+	dbPwdStr := string(dbPwd)
+	util.ClearByteArray(dbPwd)
+	dbParamsAreValid, validateDbParamsErr := util.ValidateDbParams(dbPwdStr)
+	if validateDbParamsErr != nil || !dbParamsAreValid {
+		return errors.New("failed to validate db parameters")
+	}
 
 	// PostgreSQL 配置
-	registerDriverErr := orm.RegisterDriver("postgres", orm.DRPostgres) // 注册驱动
+	registerDriverErr := orm.RegisterDriver(util.DriverName, orm.DRPostgres) // 注册驱动
 	if registerDriverErr != nil {
 		log.Error("Failed to register driver")
 		return registerDriverErr
 	}
 
 	//写到环境变量
-	registerDataBaseErr := orm.RegisterDataBase("default", "postgres", "user=postgres password=123456 dbname=postgres host=127.0.0.1 port=5432 sslmode=disable")
-	if registerDataBaseErr != nil {
+	var b strings.Builder
+	fmt.Fprintf(&b, "user=%s password=%s dbname=%s host=%s port=%s sslmode=%s", dbUser, dbPwdStr,
+		dbName, dbHost, dbPort, dbSslMode)
+	bStr := b.String()
 
+	//registerDataBaseErr := orm.RegisterDataBase("default", "postgres", "user=postgres password=123456 dbname=postgres host=127.0.0.1 port=5432 sslmode=disable")
+	registerDataBaseErr := orm.RegisterDataBase(util.Default, util.DriverName, bStr)
+
+	//clear bStr
+	bKey1 := *(*[]byte)(unsafe.Pointer(&bStr))
+	util.ClearByteArray(bKey1)
+
+	bKey := *(*[]byte)(unsafe.Pointer(&dbPwdStr))
+	util.ClearByteArray(bKey)
+
+	if registerDataBaseErr != nil {
 		log.Error("Failed to register database")
 		return registerDataBaseErr
 	}
 
-	// 自动建表
-	errRunSyncdb := orm.RunSyncdb("default", false, true)
+	// Auto build table
+	errRunSyncdb := orm.RunSyncdb(util.Default, false, true)
 	if errRunSyncdb != nil {
 		log.Error("Failed to sync database.")
 		return errRunSyncdb
