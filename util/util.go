@@ -45,7 +45,7 @@ const (
 	FailedToMakeDir                 = "failed to make directory"
 	TooBig                          = 0x6400000
 	SingleFileTooBig                = 0x6400000
-	LocalStoragePath         string = "/usr/vmImage/"
+	LocalStoragePath         string = "/usr/app/vmImage/"
 	FormFile                 string = "file"
 	UserId                   string = "userId"
 	Priority                 string = "priority"

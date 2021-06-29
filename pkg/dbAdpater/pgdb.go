@@ -17,7 +17,6 @@
 package dbAdpater
 
 import (
-	"errors"
 	"fileSystem/util"
 	"fmt"
 	"github.com/astaxie/beego/orm"
@@ -115,11 +114,11 @@ func (db *PgDb) InitDatabase() error {
 	//dbSslRootCert := DB_SSL_ROOT_CER
 
 	dbPwdStr := string(dbPwd)
-	util.ClearByteArray(dbPwd)
+/*	util.ClearByteArray(dbPwd)
 	dbParamsAreValid, validateDbParamsErr := util.ValidateDbParams(dbPwdStr)
 	if validateDbParamsErr != nil || !dbParamsAreValid {
 		return errors.New("failed to validate db parameters")
-	}
+	}*/
 
 	// PostgreSQL 配置
 	registerDriverErr := orm.RegisterDriver(util.DriverName, orm.DRPostgres) // 注册驱动
