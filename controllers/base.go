@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// @Title  controllers
+// @Description  base controller for filesystem
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package controllers
 
 import (
@@ -22,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// BaseController   Define the base for other controllers
 type BaseController struct {
 	beego.Controller
 	Db dbAdpater.Database

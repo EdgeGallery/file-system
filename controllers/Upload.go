@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// @Title  controllers
+// @Description  Upload api for filesystem
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package controllers
 
 import (
@@ -33,6 +36,7 @@ import (
 	"time"
 )
 
+// UploadController   Define the controller to control upload
 type UploadController struct {
 	BaseController
 }
@@ -117,43 +121,6 @@ func (c *UploadController) saveByPriority(priority string, saveFilename string) 
 	}
 }
 
-/*// @Title compress
-// @Description make file to zip file
-// @Param  srcDir string  eg. "F:\\dumps"
-// @Param   saveFilename 	string    eg."F:\\dumps.zip"
-func (c *UploadController) compress(dir string, zipFile string) {
-	fz, err := os.Create(zipFile)
-	if err != nil {
-		log.Fatalf("Create zip file failed: %s\n", err.Error())
-	}
-	defer fz.Close()
-
-	w := zip.NewWriter(fz)
-	defer w.Close()
-
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			fDest, err := w.Create(path[len(dir)+1:])
-			if err != nil {
-				log.Printf("Create failed: %s\n", err.Error())
-				return nil
-			}
-			fSrc, err := os.Open(path)
-			if err != nil {
-				log.Printf("Open failed: %s\n", err.Error())
-				return nil
-			}
-			defer fSrc.Close()
-			_, err = io.Copy(fDest, fSrc)
-			if err != nil {
-				log.Printf("Copy failed: %s\n", err.Error())
-				return nil
-			}
-		}
-		return nil
-	})
-}*/
-
 //压缩文件
 //files 文件数组，可以是不同dir下的文件或者文件夹
 //dest 压缩文件存放地址
@@ -177,7 +144,7 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 		return err
 	}
 	if info.IsDir() {
-		prefix = prefix + info.Name()+"/"
+		prefix = prefix + info.Name() + "/"
 		fileInfos, err := file.Readdir(-1)
 		if err != nil {
 			return err
@@ -261,29 +228,24 @@ func (c *UploadController) Get() {
 // @router "/image-management/v1/images [post]
 func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
-
 	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
 		return
 	}
-
 	c.displayReceivedMsg(clientIp)
-
 	file, head, err := c.GetFile("file")
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
 		return
 	}
-
 	err = util.ValidateFileExtension(head.Filename)
 	if err != nil || len(head.Filename) > util.MaxFileNameSize {
 		c.HandleLoggingForError(clientIp, util.BadRequest,
 			"File shouldn't contains any extension or filename is larger than max size")
 		return
 	}
-
 	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
@@ -292,7 +254,6 @@ func (c *UploadController) Post() {
 	defer file.Close()
 
 	filename := head.Filename //original name for file   1.zip or 1.qcow2
-
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
 
@@ -301,9 +262,7 @@ func (c *UploadController) Post() {
 
 	//get a storage medium to let fe know
 	storageMedium := c.getStorageMedium(priority)
-
 	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
-
 	err = c.saveByPriority(priority, saveFileName)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
@@ -314,7 +273,7 @@ func (c *UploadController) Post() {
 	if filepath.Ext(head.Filename) != ".zip" {
 		originalName := strings.TrimSuffix(filename, filepath.Ext(filename))
 		zipFilePath := storageMedium + originalName
-		err = createDirectory(zipFilePath)
+		err := createDirectory(zipFilePath)
 		if err != nil {
 			log.Error("when compress, failed to create file path to" + zipFilePath)
 			return
@@ -329,24 +288,21 @@ func (c *UploadController) Post() {
 			log.Error("failed to open upload file")
 			return
 		}
-
 		var files = []*os.File{f1}
-		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(head.Filename)) //9c73996089944709bad8efa7f532aebe+1
-
+		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(filename)) //9c73996089944709bad8efa7f532aebe+1
 		err = Compress(files, storageMedium+newSaveFileName+".zip")
 		if err != nil {
 			log.Error("failed to compress upload file")
 			return
 		}
-
 		err = os.Remove(storageMedium + saveFileName)
 		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			c.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 			return
 		}
 		err = os.RemoveAll(zipFilePath)
 		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
+			c.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 			return
 		}
 		saveFileName = newSaveFileName + ".zip"
@@ -357,7 +313,6 @@ func (c *UploadController) Post() {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
 	}
-
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
 		"fileName":      filename,
@@ -365,12 +320,9 @@ func (c *UploadController) Post() {
 		"userId":        userId,
 		"storageMedium": storageMedium,
 	})
-
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
-
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
-
 }

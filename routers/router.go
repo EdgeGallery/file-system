@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// @Title   routers
+// @Description  rout api
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package routers
 
 import (
@@ -26,7 +29,6 @@ import (
 
 func init() {
 	adapter := initDbAdapter()
-
 
 	beego.Router("/image-management/v1/images",&controllers.UploadController{controllers.BaseController{Db: adapter}})
 	beego.Router("/image-management/v1/images/:imageId/action/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})

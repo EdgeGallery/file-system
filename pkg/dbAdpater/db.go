@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// @Title  dbAdpater
+// @Description  control database
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package dbAdpater
 
 // Database API's
