@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// @Title  controllers
+// @Description  Query and Delete api for filesystem
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package controllers
 
 import (
@@ -23,6 +27,7 @@ import (
 	"os"
 )
 
+// DownloadController   Define the Image controller to control query and delete
 type ImageController struct {
 	BaseController
 }
@@ -32,7 +37,7 @@ type ImageController struct {
 // @Param	imageId 	string
 // @Success 200 ok
 // @Failure 400 bad request
-// @router /imagemangement/v1/image [get]
+// @router /image-management/v1/images/:imageId [GET]
 func (this *ImageController) Get() {
 	log.Info("Query for local image get request received.")
 
@@ -87,7 +92,7 @@ func (this *ImageController) Get() {
 // @Param	imageId 	string
 // @Success 200 ok
 // @Failure 400 bad request
-// @router /imagemangement/v1/image [delete]
+// @router /image-management/v1/images/:imageId [DELETE]
 func (this *ImageController) Delete() {
 	log.Info("Delete local image package request received.")
 	clientIp := this.Ctx.Input.IP()

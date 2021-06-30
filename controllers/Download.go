@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// @Title  controllers
+// @Description  download api for filesystem
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package controllers
 
 import (
@@ -26,11 +30,14 @@ import (
 	"strings"
 )
 
-//下载文件
+// DownloadController   Define the download controller
 type DownloadController struct {
 	BaseController
 }
 
+// @Title PathCheck
+// @Description check file in path is existed or not
+// @Param   Source Zip File Path    string
 func (this *DownloadController) PathCheck(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -42,82 +49,10 @@ func (this *DownloadController) PathCheck(path string) bool {
 	return false
 }
 
-/*
-// extract zip package
-func (this *DownloadController) extractZipPackage(packagePath string) (string, error) {
-	zipReader, err := zip.OpenReader(packagePath)
-	if err != nil {
-		return "", errors.New("fail to open zip file")
-	}
-	if len(zipReader.File) != util.SingleFile {
-		return "", errors.New("only support one image file in zip")
-	}
-
-	var totalWrote int64
-	packageDir := path.Dir(packagePath) //destination path for file to save in linux
-	err = os.MkdirAll(packageDir, 0750)
-	if err != nil {
-		log.Error(util.FailedToMakeDir)
-		return "", errors.New(util.FailedToMakeDir)
-	}
-	for _, file := range zipReader.Reader.File {
-
-		zippedFile, err := file.Open()
-		if err != nil || zippedFile == nil {
-			log.Error("Failed to open zip file")
-			continue
-		}
-		if file.UncompressedSize64 > util.SingleFileTooBig || totalWrote > util.TooBig {
-			log.Error("File size limit is exceeded")
-		}
-
-		defer zippedFile.Close()
-
-		isContinue, wrote := this.extractFiles(file, zippedFile, totalWrote, packageDir)
-		if isContinue {
-			continue
-		}
-		totalWrote = wrote
-	}
-	return packageDir, nil
-}
-
-// Extract files
-func (this *DownloadController) extractFiles(file *zip.File, zippedFile io.ReadCloser, totalWrote int64, dirName string) (bool, int64) {
-	targetDir := dirName
-	extractedFilePath := filepath.Join(
-		targetDir,
-		file.Name,
-	)
-
-	if file.FileInfo().IsDir() {
-		err := os.MkdirAll(extractedFilePath, 0750)
-		if err != nil {
-			log.Error("Failed to create directory")
-		}
-	} else {
-		outputFile, err := os.OpenFile(
-			extractedFilePath,
-			os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-			0750,
-		)
-		if err != nil || outputFile == nil {
-			log.Error("The output file is nil")
-			return true, totalWrote
-		}
-
-		defer outputFile.Close()
-
-		wt, err := io.Copy(outputFile, zippedFile)
-		if err != nil {
-			log.Error("Failed to copy zipped file")
-		}
-		totalWrote += wt
-	}
-	return false, totalWrote
-}*/
-
-//解压
+// @Title DeCompress
+// @Description Decompress file
+// @Param   Source Zip File Path    string
+// @Param   Destination File Path    string
 func DeCompress(zipFile, dest string) ([]string, error) {
 	var res []string
 	reader, err := zip.OpenReader(zipFile)
@@ -154,10 +89,12 @@ func DeCompress(zipFile, dest string) ([]string, error) {
 	return res, nil
 }
 
+//Helper function to get file path
 func getDir(path string) string {
 	return subString(path, 0, strings.LastIndex(path, "/"))
 }
 
+//Helper function to get substring
 func subString(str string, start, end int) string {
 	rs := []rune(str)
 	length := len(rs)
@@ -219,14 +156,14 @@ func (this *DownloadController) Get() {
 		this.Ctx.Output.Download(downloadPath, downloadName)
 	} else {
 		saveName := strings.TrimSuffix(originalName, filepath.Ext(originalName))
-		arr,err := DeCompress(downloadPath, filePath+saveName)
+		arr, err := DeCompress(downloadPath, filePath+saveName)
 		if err != nil {
 			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
 			return
 		}
 
 		downloadPath = arr[0]
-		originalName = subString(downloadPath,strings.LastIndex(downloadPath,"/")+1,len(downloadPath))
+		originalName = subString(downloadPath, strings.LastIndex(downloadPath, "/")+1, len(downloadPath))
 		this.Ctx.Output.Download(downloadPath, originalName)
 
 		err = os.RemoveAll(filePath + saveName)

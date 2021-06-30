@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// @Title  models
+// @Description  control database
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package models
 
 import (
@@ -21,6 +24,7 @@ import (
 	"time"
 )
 
+// ImageDB   Define the database type
 type ImageDB struct {
 	ImageId       string `orm:"pk"`
 	FileName      string

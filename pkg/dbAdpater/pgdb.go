@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// @Title  dbAdpater
+// @Description  control database
+// @Author  GuoZhen Gao (2021/6/30 10:40)
 package dbAdpater
 
 import (
@@ -120,14 +123,14 @@ func (db *PgDb) InitDatabase() error {
 		return errors.New("failed to validate db parameters")
 	}*/
 
-	// PostgreSQL 配置
-	registerDriverErr := orm.RegisterDriver(util.DriverName, orm.DRPostgres) // 注册驱动
+	// PostgreSQL configuration
+	registerDriverErr := orm.RegisterDriver(util.DriverName, orm.DRPostgres) // register driver
 	if registerDriverErr != nil {
 		log.Error("Failed to register driver")
 		return registerDriverErr
 	}
 
-	//写到环境变量
+	//get parameters from env
 	var b strings.Builder
 	fmt.Fprintf(&b, "user=%s password=%s dbname=%s host=%s port=%s sslmode=%s", dbUser, dbPwdStr,
 		dbName, dbHost, dbPort, dbSslMode)
