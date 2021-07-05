@@ -53,7 +53,8 @@ func createDirectory(dir string) error { //make dir if path doesn't exist
 
 func createImageID() string {
 	uuId := uuid.NewV4()
-	return strings.Replace(uuId.String(), "-", "", -1)
+	//return strings.Replace(uuId.String(), "-", "", -1)
+	return uuId.String()
 }
 
 func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium string) error {
