@@ -4,7 +4,7 @@
 
 ##概述
 
-​    file-system为developer提供上传、下载、查询的文件管理服务
+​    file-system为developer提供上传、下载、查询、删除的文件管理服务
 
 
 
