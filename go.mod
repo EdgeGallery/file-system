@@ -16,9 +16,8 @@ module fileSystem
 
 go 1.14
 
-require github.com/astaxie/beego v1.12.0
-
 require (
+    github.com/astaxie/beego v1.12.0
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/lib/pq v1.7.0
 	github.com/satori/go.uuid v1.2.0
