@@ -34,6 +34,7 @@ func init() {
 	beego.Router("/image-management/v1/images/:imageId/action/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
 	beego.Router("/image-management/v1/images/:imageId",&controllers.ImageController{controllers.BaseController{Db: adapter}})
 
+
 }
 
 // Init Db adapter
