@@ -53,6 +53,9 @@ const (
 	FormFile                 string = "file"
 	UserId                   string = "userId"
 	Priority                 string = "priority"
+	Part                     string = "part"
+	Identifier               string = "identifier"
+	FileName                 string = "filename"
 	DriverName               string = "postgres"
 	SslMode                  string = "disable"
 	minPasswordSize         = 8

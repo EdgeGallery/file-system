@@ -33,7 +33,8 @@ func init() {
 	beego.Router("/image-management/v1/images",&controllers.UploadController{controllers.BaseController{Db: adapter}})
 	beego.Router("/image-management/v1/images/:imageId/action/download", &controllers.DownloadController{controllers.BaseController{Db: adapter}})
 	beego.Router("/image-management/v1/images/:imageId",&controllers.ImageController{controllers.BaseController{Db: adapter}})
-
+	beego.Router("/image-management/v1/images/upload",&controllers.UploadChunkController{controllers.BaseController{Db: adapter}})
+	beego.Router("/image-management/v1/images/merge",&controllers.MergeChunkController{controllers.BaseController{Db: adapter}})
 
 }
 

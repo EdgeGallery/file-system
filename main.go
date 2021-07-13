@@ -25,10 +25,6 @@ import (
 )
 
 
-
-
-
-
 func main() {
 
 	beego.InsertFilter("*", beego.BeforeRouter,cors.Allow(&cors.Options{
