@@ -327,3 +327,5 @@ func (c *UploadController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 }
+
+
