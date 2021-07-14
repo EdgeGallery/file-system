@@ -151,6 +151,13 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 
+	//delete the emp file path
+	err = os.RemoveAll(storageMedium + identifier + "/")
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
+		return
+	}
+
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
 		"fileName":      filename,
