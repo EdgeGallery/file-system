@@ -49,44 +49,62 @@ func (this *DownloadController) PathCheck(path string) bool {
 	return false
 }
 
-// @Title DeCompress
-// @Description Decompress file
-// @Param   Source Zip File Path    string
-// @Param   Destination File Path    string
-func DeCompress(zipFile, dest string) ([]string, error) {
-	var res []string
-	reader, err := zip.OpenReader(zipFile)
-	if err != nil {
-		return nil, err
+//压缩文件
+//files 文件数组，可以是不同dir下的文件或者文件夹
+//dest 压缩文件存放地址
+func Compress(files []*os.File, dest string) error {
+	d, _ := os.Create(dest)
+	defer d.Close()
+	w := zip.NewWriter(d)
+	defer w.Close()
+	for _, file := range files {
+		err := compress(file, "", w)
+		if err != nil {
+			return err
+		}
 	}
-	defer reader.Close()
-	for _, file := range reader.File {
-		rc, err := file.Open()
-		if err != nil {
-			return nil, err
-		}
-		defer rc.Close()
-		filename := dest + "/" + file.Name
-		err = os.MkdirAll(getDir(filename), 0755)
-		if err != nil {
-			return nil, err
-		}
+	return nil
+}
 
-		if len(filename)-1 == strings.LastIndex(filename, "/") {
-			continue
-		}
-		w, err := os.Create(filename)
+func compress(file *os.File, prefix string, zw *zip.Writer) error {
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		prefix = prefix + info.Name() + "/"
+		fileInfos, err := file.Readdir(-1)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		defer w.Close()
-		_, err = io.Copy(w, rc)
-		res = append(res, filename)
+		for _, fi := range fileInfos {
+			f, err := os.Open(file.Name() + "/" + fi.Name())
+			if err != nil {
+				return err
+			}
+			err = compress(f, prefix, zw)
+			file.Close()
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		header, err := zip.FileInfoHeader(info)
+		header.Name = prefix + header.Name
 		if err != nil {
-			return nil, err
+			return err
+		}
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, file)
+		file.Close()
+		if err != nil {
+			return err
 		}
 	}
-	return res, nil
+	return nil
 }
 
 //Helper function to get file path
@@ -115,7 +133,7 @@ func subString(str string, start, end int) string {
 // @Param   imageId        path 	string	true   "imageId"
 // @Success 200 ok
 // @Failure 400 bad request
-// @router /imagemanagement/v1/download [get]
+// @router /image-management/v1/images/:imageId/action/download [get]
 func (this *DownloadController) Get() {
 	log.Info("Download get request received.")
 
@@ -134,7 +152,6 @@ func (this *DownloadController) Get() {
 
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
-	//err = this.Db.QueryForDownload("image_d_b", &imageFileDb, imageId) //表名
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
@@ -152,25 +169,43 @@ func (this *DownloadController) Get() {
 	downloadPath := filePath + fileName
 
 	if this.Ctx.Input.Query("isZip") == "true" {
+		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
+		zipFilePath := filePath + filenameWithoutExt
+		err := createDirectory(zipFilePath)
+		if err != nil {
+			log.Error("when compress, failed to create file path")
+			return
+		}
+		_, err = CopyFile(downloadPath, zipFilePath+"/"+originalName)
+		if err != nil {
+			log.Error("when compress, failed to copy file")
+			return
+		}
+		f1, err := os.Open(zipFilePath)
+		if err != nil {
+			log.Error("failed to open file")
+			return
+		}
+		var files = []*os.File{f1}
 		downloadName := strings.TrimSuffix(originalName, filepath.Ext(originalName)) + ".zip"
+		err = Compress(files, filePath+downloadName)
+		if err != nil {
+			log.Error("failed to compress upload file")
+			return
+		}
 		this.Ctx.Output.Download(downloadPath, downloadName)
+		err = os.Remove(filePath+downloadName)
+		if err != nil {
+			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+			return
+		}
+		err = os.RemoveAll(zipFilePath)
+		if err != nil {
+			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+			return
+		}
 	} else {
-		saveName := strings.TrimSuffix(originalName, filepath.Ext(originalName))
-		arr, err := DeCompress(downloadPath, filePath+saveName)
-		if err != nil {
-			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
-			return
-		}
-
-		downloadPath = arr[0]
-		originalName = subString(downloadPath, strings.LastIndex(downloadPath, "/")+1, len(downloadPath))
-		this.Ctx.Output.Download(downloadPath, originalName)
-
-		err = os.RemoveAll(filePath + saveName)
-		if err != nil {
-			this.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDeleteCache)
-			return
-		}
+		this.Ctx.Output.Download(downloadPath,originalName)
 	}
 
 }

@@ -122,68 +122,52 @@ func (c *UploadController) saveByPriority(priority string, saveFilename string) 
 	}
 }
 
-//压缩文件
-//files 文件数组，可以是不同dir下的文件或者文件夹
-//dest 压缩文件存放地址
-func Compress(files []*os.File, dest string) error {
-	d, _ := os.Create(dest)
-	defer d.Close()
-	w := zip.NewWriter(d)
-	defer w.Close()
-	for _, file := range files {
-		err := compress(file, "", w)
+
+// @Title DeCompress
+// @Description Decompress file
+// @Param   Source Zip File Path    string
+// @Param   Destination File Path    string
+func DeCompress(zipFile, dest string) ([]string, error) {
+	var res []string
+	reader, err := zip.OpenReader(zipFile)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	for _, file := range reader.File {
+		rc, err := file.Open()
 		if err != nil {
-			return err
+			return nil, err
+		}
+		defer rc.Close()
+		filename := dest + "/" + file.Name
+		err = os.MkdirAll(getDir(filename), 0755)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(filename)-1 == strings.LastIndex(filename, "/") {
+			continue
+		}
+		w, err := os.Create(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer w.Close()
+		_, err = io.Copy(w, rc)
+		res = append(res, filename)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return res, nil
 }
 
-func compress(file *os.File, prefix string, zw *zip.Writer) error {
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		prefix = prefix + info.Name() + "/"
-		fileInfos, err := file.Readdir(-1)
-		if err != nil {
-			return err
-		}
-		for _, fi := range fileInfos {
-			f, err := os.Open(file.Name() + "/" + fi.Name())
-			if err != nil {
-				return err
-			}
-			err = compress(f, prefix, zw)
-			file.Close()
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		header, err := zip.FileInfoHeader(info)
-		header.Name = prefix + header.Name
-		if err != nil {
-			return err
-		}
-		writer, err := zw.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-		_, err = io.Copy(writer, file)
-		file.Close()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // 编写一个函数，接收两个文件路径:
 //srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
 //dstFile := "e:/Go/tools/copyFileTest02.pdf" -- 目标文件路径
-func copyFile(srcFileName string, dstFileName string) (written int64, err error) {
+func CopyFile(srcFileName string, dstFileName string) (written int64, err error) {
 	srcFile, err := os.Open(srcFileName)
 	if err != nil {
 		fmt.Printf("open file error = %v\n", err)
@@ -236,17 +220,20 @@ func (c *UploadController) Post() {
 		return
 	}
 	c.displayReceivedMsg(clientIp)
+
 	file, head, err := c.GetFile("file")
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
 		return
 	}
+
 	err = util.ValidateFileExtension(head.Filename)
 	if err != nil || len(head.Filename) > util.MaxFileNameSize {
 		c.HandleLoggingForError(clientIp, util.BadRequest,
 			"File shouldn't contains any extension or filename is larger than max size")
 		return
 	}
+
 	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
@@ -269,54 +256,36 @@ func (c *UploadController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
 		return
 	}
+	originalName := filename
 
-	//if file is not zip file, compress it to zip
-	if filepath.Ext(head.Filename) != ".zip" {
-		originalName := strings.TrimSuffix(filename, filepath.Ext(filename))
-		zipFilePath := storageMedium + originalName
-		err := createDirectory(zipFilePath)
+	//if file is zip file, decompress it to image file
+	if filepath.Ext(head.Filename) == ".zip" {
+		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		decompressFilePath := storageMedium + saveFileName
+		arr, err := DeCompress(decompressFilePath, storageMedium)
 		if err != nil {
-			log.Error("when compress, failed to create file path to" + zipFilePath)
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
 			return
 		}
-		_, err = copyFile(storageMedium+saveFileName, zipFilePath+"/"+filename)
+		originalName = subString(arr[0], strings.LastIndex(arr[0], "/")+1, len(arr[0]))
+		saveFileName = imageId + originalName
+		srcFileName := storageMedium + filenameWithoutExt + "/" + originalName
+		dstFileName := storageMedium + saveFileName
+		_, err = CopyFile(srcFileName, dstFileName)
 		if err != nil {
-			log.Error("when compress, failed to create file path to" + zipFilePath)
+			log.Error("when decompress, failed to copy file")
 			return
 		}
-		f1, err := os.Open(zipFilePath)
-		if err != nil {
-			log.Error("failed to open upload file")
-			return
-		}
-		var files = []*os.File{f1}
-		newSaveFileName := strings.TrimSuffix(saveFileName, filepath.Ext(filename)) //9c73996089944709bad8efa7f532aebe+1
-		err = Compress(files, storageMedium+newSaveFileName+".zip")
-		if err != nil {
-			log.Error("failed to compress upload file")
-			return
-		}
-		err = os.Remove(storageMedium + saveFileName)
-		if err != nil {
-			c.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
-		err = os.RemoveAll(zipFilePath)
-		if err != nil {
-			c.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
-		saveFileName = newSaveFileName + ".zip"
 	}
 
-	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium)
+	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
 	}
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
-		"fileName":      filename,
+		"fileName":      originalName,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
@@ -327,5 +296,3 @@ func (c *UploadController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 }
-
-
