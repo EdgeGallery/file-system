@@ -39,6 +39,7 @@ const (
 	LastInsertIdNotSupported string = "LastInsertId is not supported by this driver"
 	FailedToDecompress              = "Failed to decompress zip file"
 	FailedToDeleteCache             = "Failed to delete cache file"
+	FailedToUnmarshal               = "failed to unmarshal request"
 	Default                  string = "default"
 	MaxFileNameSize                 = 128
 	MaxAppPackageFile        int64  = 536870912000 //fix file size here
