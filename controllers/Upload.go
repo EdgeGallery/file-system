@@ -122,7 +122,6 @@ func (c *UploadController) saveByPriority(priority string, saveFilename string) 
 	}
 }
 
-
 // @Title DeCompress
 // @Description Decompress file
 // @Param   Source Zip File Path    string
@@ -162,7 +161,6 @@ func DeCompress(zipFile, dest string) ([]string, error) {
 	}
 	return res, nil
 }
-
 
 // 编写一个函数，接收两个文件路径:
 //srcFile := "e:/copyFileTest02.pdf" -- 源文件路径
@@ -283,12 +281,13 @@ func (c *UploadController) Post() {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
 	}
-	uploadResp, err := json.Marshal(map[string]string{
+	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      originalName,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
+		"isSlimmed":     false,
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
