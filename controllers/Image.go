@@ -20,10 +20,13 @@
 package controllers
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
 	"os"
 )
 
@@ -69,13 +72,38 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
+	requestId := imageFileDb.RequestId
 
-	uploadResp, err := json.Marshal(map[string]string{
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	response, err := client.Get("http://imageops/api/v1/vmimage/check" + requestId)
+	if err != nil {
+		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
+		return
+	}
+
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	
+	var checkStatusResponse CheckStatusResponse
+
+	err = json.Unmarshal(body, &checkStatusResponse)
+	if err != nil {
+		this.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
+		return
+	}
+	slimStatus := imageFileDb.SlimStatus
+
+	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    uploadTime,
 		"userId":        userId,
 		"storageMedium": storageMedium,
+		"slimStatus": slimStatus,
+		"checkStatusResponse" : checkStatusResponse,
 	})
 
 	if err != nil {

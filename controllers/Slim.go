@@ -211,9 +211,9 @@ func (c *SlimController) Get() {
 	}
 
 	client := &http.Client{Transport: tr}
-	response, err := client.Get("http://imageops/api/v1/vmimage/" + requestId)
+	response, err := client.Get("http://imageops/api/v1/vmimage/compress" + requestId)
 	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage compress check")
 		return
 	}
 	defer response.Body.Close()

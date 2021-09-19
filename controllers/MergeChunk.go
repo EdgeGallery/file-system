@@ -143,12 +143,14 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
 		return
 	}
+	slimStatus := "0" //默认未瘦身
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
+		"slimStatus":    slimStatus,
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
