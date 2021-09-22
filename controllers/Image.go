@@ -86,7 +86,7 @@ func (this *ImageController) Get() {
 
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
-	
+
 	var checkStatusResponse CheckStatusResponse
 
 	err = json.Unmarshal(body, &checkStatusResponse)

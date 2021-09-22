@@ -99,6 +99,15 @@ func ValidateFileExtension(fileName string) error {
 	return nil
 }
 
+// Validate file extension
+func ValidateFileExtensionForMerge(fileName string) error {
+	extension := filepath.Ext(fileName)
+	if extension != ".qcow2" && extension != ".img" &&extension!=".iso" {
+		return errors.New("file extension is not supported")
+	}
+	return nil
+}
+
 // Get app configuration
 func GetAppConfig(k string) string {
 	return beego.AppConfig.String(k)
