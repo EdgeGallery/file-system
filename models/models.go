@@ -26,12 +26,18 @@ import (
 
 // ImageDB   Define the database type
 type ImageDB struct {
-	ImageId       string `orm:"pk"`
-	FileName      string
-	UserId        string
-	SaveFileName  string
-	StorageMedium string
-	UploadTime    time.Time `orm:"auto_now_add;type(datetime)"`
+	ImageId        string `orm:"pk"`
+	FileName       string
+	UserId         string
+	SaveFileName   string
+	StorageMedium  string
+	UploadTime     time.Time `orm:"auto_now_add;type(datetime)"`
+	SlimStatus     int       //[0,1,2,3]  成功/失败/未瘦身/瘦身中
+	RequestId      string
+	Checksum       string
+	ImageEndOffset string
+	CheckErrors    string
+	format         string
 }
 
 func init() {

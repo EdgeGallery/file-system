@@ -92,7 +92,14 @@ func (c *MergeChunkController) Post() {
 	c.displayReceivedMsg(clientIp)
 	userId := c.GetString(util.UserId)
 	identifier := c.GetString(util.Identifier)
-	filename := c.GetString(util.FileName) //xxxxxxx.zip
+	filename := c.GetString(util.FileName) //只能做镜像文件合并
+	err = util.ValidateFileExtensionForMerge(filename)
+	if err != nil || len(filename) > util.MaxFileNameSize {
+		c.HandleLoggingForError(clientIp, util.BadRequest,
+			"File should only be image file or filename is larger than max size")
+		return
+	}
+
 	priority := c.GetString(util.Priority)
 	//create imageId, fileName, uploadTime, userId
 	imageId := createImageID()
@@ -143,12 +150,14 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
 		return
 	}
+	slimStatus := "0" //默认未瘦身
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
+		"slimStatus":    slimStatus,
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
