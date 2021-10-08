@@ -274,6 +274,11 @@ func (c *UploadController) Post() {
 			log.Error("when decompress, failed to copy file")
 			return
 		}
+		err = os.Remove(decompressFilePath)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete tmp zip file in vm")
+			return
+		}
 	}
 
 	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium)

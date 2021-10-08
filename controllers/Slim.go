@@ -151,7 +151,8 @@ func (c *SlimController) Post() {
 	requestJson, _ := json.Marshal(formConfigMap)
 	requestBody := bytes.NewReader(requestJson)
 
-	response, err := client.Post("http://imageops/api/v1/vmimage/compress", "application/json", requestBody)
+	//imageops/api/v1/vmimage/compress
+	response, err := client.Post("http://localhost:5000/api/v1/vmimage/compress", "application/json", requestBody)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
 		return
@@ -211,7 +212,8 @@ func (c *SlimController) Get() {
 	}
 
 	client := &http.Client{Transport: tr}
-	response, err := client.Get("http://imageops/api/v1/vmimage/compress" + requestId)
+	//http://imageops/api/v1/vmimage/compress
+	response, err := client.Get("http://localhost:5000/api/v1/vmimage/compress" + requestId)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage compress check")
 		return

@@ -74,11 +74,17 @@ func (this *ImageController) Get() {
 	storageMedium := imageFileDb.StorageMedium
 	requestId := imageFileDb.RequestId
 
+	if len(requestId) == 0 {
+		this.Ctx.WriteString("requestId is empty, this image doesn't finish slimming yet")
+		return
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	response, err := client.Get("http://imageops/api/v1/vmimage/check" + requestId)
+	//http://imageops/api/v1/vmimage/check
+	response, err := client.Get("http://localhost:5000/api/v1/vmimage/check" + requestId)
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
 		return

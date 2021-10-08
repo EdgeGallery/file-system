@@ -23,7 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -90,10 +92,12 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 	c.displayReceivedMsg(clientIp)
+
 	userId := c.GetString(util.UserId)
 	identifier := c.GetString(util.Identifier)
-	filename := c.GetString(util.FileName) //只能做镜像文件合并
-	err = util.ValidateFileExtensionForMerge(filename)
+	filename := c.GetString(util.FileName)
+
+	err = util.ValidateFileExtension(filename)
 	if err != nil || len(filename) > util.MaxFileNameSize {
 		c.HandleLoggingForError(clientIp, util.BadRequest,
 			"File should only be image file or filename is larger than max size")
@@ -107,7 +111,6 @@ func (c *MergeChunkController) Post() {
 	storageMedium := c.getStorageMedium(priority)
 	saveFilePath := storageMedium + imageId + filename //   app/vmImages/identifier/xx.zip
 	file, err := os.OpenFile(saveFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
-	defer file.Close()
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the previous file path")
 		return
@@ -138,7 +141,39 @@ func (c *MergeChunkController) Post() {
 			return
 		}
 	}
+	file.Close()
+
 	saveFileName := imageId + filename
+	if filepath.Ext(filename) == ".zip"{
+		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
+		decompressFilePath := storageMedium + saveFileName
+		arr, err := DeCompress(saveFilePath, storageMedium)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
+			return
+		}
+		originalName := subString(arr[0], strings.LastIndex(arr[0], "/")+1, len(arr[0]))
+		saveFileName = imageId + originalName
+		srcFileName := storageMedium + filenameWithoutExt + "/" + originalName
+		dstFileName := storageMedium + saveFileName
+		_, err = CopyFile(srcFileName, dstFileName)
+		if err != nil {
+			log.Error("when decompress, failed to copy file")
+			return
+		}
+		err = os.RemoveAll(storageMedium + filenameWithoutExt + "/")
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete tmp file package in vm")
+			return
+		}
+		err = os.Remove(decompressFilePath)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete tmp zip file in vm")
+			return
+		}
+		filename = originalName
+	}
+
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
@@ -150,6 +185,7 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
 		return
 	}
+
 	slimStatus := "0" //默认未瘦身
 	uploadResp, err := json.Marshal(map[string]string{
 		"imageId":       imageId,
@@ -164,4 +200,6 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+
+
 }
