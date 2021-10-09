@@ -292,7 +292,7 @@ func (c *UploadController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"isSlimmed":     false,
+		"isSlimmed":     0,               //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")

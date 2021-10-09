@@ -84,7 +84,7 @@ func (this *ImageController) Get() {
 	}
 	client := &http.Client{Transport: tr}
 	//http://imageops/api/v1/vmimage/check
-	response, err := client.Get("http://localhost:5000/api/v1/vmimage/check" + requestId)
+	response, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestId)
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
 		return
