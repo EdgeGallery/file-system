@@ -42,8 +42,8 @@ type CompressResult struct {
 }
 
 type ImageInfo struct {
-	ImageEndOffset int    `json:"image-end-offset"`
-	CheckErrors    int    `json:"check-errors"`
+	ImageEndOffset string `json:"image-end-offset"`
+	CheckErrors    string `json:"check-errors"`
 	Format         string `json:"format"`
 	Filename       string `json:"filename"`
 }
@@ -85,9 +85,9 @@ func (c *SlimController) PathCheck(path string) bool {
 func (c *SlimController) insertOrUpdatePostRecord(imageId string, slimStatus int, requestId string) error {
 
 	fileRecord := &models.ImageDB{
-		ImageId:    imageId,
-		SlimStatus: slimStatus,
-		RequestId:  requestId,
+		ImageId:           imageId,
+		SlimStatus:        slimStatus,
+		RequestIdCompress: requestId,
 	}
 
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
@@ -205,7 +205,7 @@ func (c *SlimController) Get() {
 		return
 	}
 
-	requestId := imageFileDb.RequestId
+	requestId := imageFileDb.RequestIdCompress
 	if len(requestId) == 0 {
 		c.Ctx.WriteString("requestId is empty, this image doesn't begin slimming yet")
 		return

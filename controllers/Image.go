@@ -72,10 +72,10 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
-	requestId := imageFileDb.RequestId
-
+	requestId := imageFileDb.RequestIdCheck
+	//requestId := "ec2a7252-28f9-11ec-a609-0242ac110002"
 	if len(requestId) == 0 {
-		this.Ctx.WriteString("requestId is empty, this image doesn't finish slimming yet")
+		this.Ctx.WriteString("check requestId is empty, this image doesn't check yet")
 		return
 	}
 
@@ -85,6 +85,7 @@ func (this *ImageController) Get() {
 	client := &http.Client{Transport: tr}
 	//http://imageops/api/v1/vmimage/check
 	response, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestId)
+	//response, err := client.Get("http://192.168.1.57:5000/api/v1/vmimage/check/ec2a7252-28f9-11ec-a609-0242ac110002")
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
 		return
@@ -104,13 +105,13 @@ func (this *ImageController) Get() {
 	slimStatus := imageFileDb.SlimStatus
 
 	uploadResp, err := json.Marshal(map[string]interface{}{
-		"imageId":       imageId,
-		"fileName":      filename,
-		"uploadTime":    uploadTime,
-		"userId":        userId,
-		"storageMedium": storageMedium,
-		"slimStatus": slimStatus,
-		"checkStatusResponse" : checkStatusResponse,
+		"imageId":             imageId,
+		"fileName":            filename,
+		"uploadTime":          uploadTime,
+		"userId":              userId,
+		"storageMedium":       storageMedium,
+		"slimStatus":          slimStatus,
+		"checkStatusResponse": checkStatusResponse,
 	})
 
 	if err != nil {
