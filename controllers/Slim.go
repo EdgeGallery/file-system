@@ -136,8 +136,7 @@ func (c *SlimController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
 		return
 	}
-
-	//TODO: 添加isSlim字段后，先判断是否已经瘦身，若瘦身，则返回
+	
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -213,7 +212,7 @@ func (c *SlimController) Get() {
 
 	client := &http.Client{Transport: tr}
 	//http://imageops/api/v1/vmimage/compress
-	response, err := client.Get("http://localhost:5000/api/v1/vmimage/compress" + requestId)
+	response, err := client.Get("http://localhost:5000/api/v1/vmimage/compress/" + requestId)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage compress check")
 		return

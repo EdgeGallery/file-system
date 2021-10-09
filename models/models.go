@@ -32,7 +32,7 @@ type ImageDB struct {
 	SaveFileName   string
 	StorageMedium  string
 	UploadTime     time.Time `orm:"auto_now_add;type(datetime)"`
-	SlimStatus     int       //[0,1,2,3]  成功/失败/未瘦身/瘦身中
+	SlimStatus     int       //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 	RequestId      string
 	Checksum       string
 	ImageEndOffset string
