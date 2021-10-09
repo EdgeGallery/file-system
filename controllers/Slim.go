@@ -63,9 +63,9 @@ type CheckStatusResponse struct {
 
 // /vmimage/compress/requestId get response
 type CompressStatusResponse struct {
-	Status int    `json:"status"`
-	Msg    string `json:"msg"`
-	Rate   string `json:"rate"`
+	Status int     `json:"status"`
+	Msg    string  `json:"msg"`
+	Rate   float64 `json:"rate"`
 }
 
 // @Title PathCheck
@@ -204,6 +204,7 @@ func (c *SlimController) Get() {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
 	}
+
 	requestId := imageFileDb.RequestId
 	if len(requestId) == 0 {
 		c.Ctx.WriteString("requestId is empty, this image doesn't begin slimming yet")
@@ -221,9 +222,11 @@ func (c *SlimController) Get() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage compress check")
 		return
 	}
+
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 
+	log.Error("string:" + string(body))
 	var compressStatusResponse CompressStatusResponse
 	err = json.Unmarshal(body, &compressStatusResponse)
 	if err != nil {
