@@ -93,6 +93,7 @@ func (this *ImageController) Get() {
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 
+	log.Error("string:" + string(body))
 	var checkStatusResponse CheckStatusResponse
 
 	err = json.Unmarshal(body, &checkStatusResponse)
