@@ -17,11 +17,14 @@
 package controllers
 
 import (
+	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,13 +37,14 @@ type MergeChunkController struct {
 	BaseController
 }
 
-func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium string) error {
+func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium,requestIdCheck string) error {
 	fileRecord := &models.ImageDB{
 		ImageId:       imageId,
 		FileName:      fileName,
 		UserId:        userId,
 		SaveFileName:  saveFileName,
 		StorageMedium: storageMedium,
+		RequestIdCheck: requestIdCheck,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
@@ -174,7 +178,36 @@ func (c *MergeChunkController) Post() {
 		filename = originalName
 	}
 
-	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	var formConfigMap map[string]string
+	formConfigMap = make(map[string]string)
+	formConfigMap["inputImageName"] = saveFileName
+
+	requestJson, _ := json.Marshal(formConfigMap)
+	requestBody := bytes.NewReader(requestJson)
+
+	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+		return
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+
+	var checkResponse CheckResponse
+	err = json.Unmarshal(body, &checkResponse)
+	if err != nil {
+		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
+	}
+	status := checkResponse.Status
+	msg := checkResponse.Msg
+	requestIdCheck := checkResponse.RequestId
+
+	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium,requestIdCheck)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
@@ -187,13 +220,15 @@ func (c *MergeChunkController) Post() {
 	}
 
 	slimStatus := "0" //默认未瘦身
-	uploadResp, err := json.Marshal(map[string]string{
+	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
 		"slimStatus":    slimStatus,
+		"status":        status,
+		"msg":           msg,
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
