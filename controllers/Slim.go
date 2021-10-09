@@ -136,7 +136,7 @@ func (c *SlimController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
 		return
 	}
-	
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -205,6 +205,10 @@ func (c *SlimController) Get() {
 		return
 	}
 	requestId := imageFileDb.RequestId
+	if len(requestId) == 0 {
+		c.Ctx.WriteString("requestId is empty, this image doesn't begin slimming yet")
+		return
+	}
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -223,6 +227,7 @@ func (c *SlimController) Get() {
 	var compressStatusResponse CompressStatusResponse
 	err = json.Unmarshal(body, &compressStatusResponse)
 	if err != nil {
+		log.Error("fail to request http://localhost:5000/api/v1/vmimage/compress/" + requestId)
 		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 		return
 	}
