@@ -37,13 +37,13 @@ type MergeChunkController struct {
 	BaseController
 }
 
-func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium,requestIdCheck string) error {
+func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, requestIdCheck string) error {
 	fileRecord := &models.ImageDB{
-		ImageId:       imageId,
-		FileName:      fileName,
-		UserId:        userId,
-		SaveFileName:  saveFileName,
-		StorageMedium: storageMedium,
+		ImageId:        imageId,
+		FileName:       fileName,
+		UserId:         userId,
+		SaveFileName:   saveFileName,
+		StorageMedium:  storageMedium,
 		RequestIdCheck: requestIdCheck,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
@@ -110,7 +110,7 @@ func (c *MergeChunkController) Post() {
 
 	priority := c.GetString(util.Priority)
 	//create imageId, fileName, uploadTime, userId
-	imageId := createImageID()
+	imageId := CreateImageID()
 	//get a storage medium to let fe know
 	storageMedium := c.getStorageMedium(priority)
 	saveFilePath := storageMedium + imageId + filename //   app/vmImages/identifier/xx.zip
@@ -148,7 +148,7 @@ func (c *MergeChunkController) Post() {
 	file.Close()
 
 	saveFileName := imageId + filename
-	if filepath.Ext(filename) == ".zip"{
+	if filepath.Ext(filename) == ".zip" {
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
 		decompressFilePath := storageMedium + saveFileName
 		arr, err := DeCompress(saveFilePath, storageMedium)
@@ -207,7 +207,7 @@ func (c *MergeChunkController) Post() {
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
 
-	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium,requestIdCheck)
+	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
@@ -226,7 +226,7 @@ func (c *MergeChunkController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"slimStatus":    slimStatus,
+		"isSlimmed":     slimStatus,
 		"status":        status,
 		"msg":           msg,
 	})
@@ -235,6 +235,4 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
-
-
 }

@@ -33,6 +33,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func createDirectory(dir string) error { //make dir if path doesn't exist
 	return nil
 }
 
-func createImageID() string {
+func CreateImageID() string {
 	uuId := uuid.NewV4()
 	//return strings.Replace(uuId.String(), "-", "", -1)
 	return uuId.String()
@@ -222,42 +223,19 @@ func (c *UploadController) Get() {
 // @router "/image-management/v1/images [post]
 func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
-	clientIp := c.Ctx.Input.IP()
-	err := util.ValidateSrcAddress(clientIp)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
-		return
-	}
-	c.displayReceivedMsg(clientIp)
 
-	file, head, err := c.GetFile("file")
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
+	clientIp, err, file, head, isDone := c.foreCheck()
+	if isDone {
 		return
 	}
 
-	err = util.ValidateFileExtension(head.Filename)
-	if err != nil || len(head.Filename) > util.MaxFileNameSize {
-		c.HandleLoggingForError(clientIp, util.BadRequest,
-			"File shouldn't contains any extension or filename is larger than max size")
-		return
-	}
-
-	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
-		return
-	}
 	defer file.Close()
 
 	filename := head.Filename //original name for file   1.zip or 1.qcow2
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
+	imageId := CreateImageID()
 
-	//create imageId, fileName, uploadTime, userId
-	imageId := createImageID()
-
-	//get a storage medium to let fe know
 	storageMedium := c.getStorageMedium(priority)
 	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
 	err = c.saveByPriority(priority, saveFileName)
@@ -345,4 +323,34 @@ func (c *UploadController) Post() {
 		return
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+}
+
+func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
+	clientIp := c.Ctx.Input.IP()
+	err := util.ValidateSrcAddress(clientIp)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		return "", nil, nil, nil, true
+	}
+	c.displayReceivedMsg(clientIp)
+
+	file, head, err := c.GetFile("file")
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
+		return "", nil, nil, nil, true
+	}
+
+	err = util.ValidateFileExtension(head.Filename)
+	if err != nil || len(head.Filename) > util.MaxFileNameSize {
+		c.HandleLoggingForError(clientIp, util.BadRequest,
+			"File shouldn't contains any extension or filename is larger than max size")
+		return "", nil, nil, nil, true
+	}
+
+	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
+		return "", nil, nil, nil, true
+	}
+	return clientIp, err, file, head, false
 }

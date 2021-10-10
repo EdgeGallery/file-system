@@ -29,16 +29,17 @@ type ImageDB struct {
 	ImageId           string `orm:"pk"`
 	FileName          string
 	UserId            string
-	SaveFileName      string
+	SaveFileName      string   //此字段为imageId+FileName，若slimStatus为2时，查找瘦身镜像在此前加“compressed”
 	StorageMedium     string
 	UploadTime        time.Time `orm:"auto_now_add;type(datetime)"`
 	SlimStatus        int       //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 	RequestIdCheck    string
 	RequestIdCompress string
 	Checksum          string
+	CheckResult       int
 	ImageEndOffset    string
 	CheckErrors       string
-	format            string
+	Format            string
 }
 
 func init() {
