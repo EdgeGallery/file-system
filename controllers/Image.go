@@ -75,7 +75,12 @@ func (this *ImageController) Get() {
 	var checkInfo CheckInfo
 	var imageInfo ImageInfo
 
-	imageInfo.Filename = "compressed" + imageFileDb.SaveFileName
+	if slimStatus == 2 {
+		imageInfo.Filename = "compressed" + imageFileDb.SaveFileName
+	} else {
+		imageInfo.Filename = imageFileDb.SaveFileName
+	}
+
 	imageInfo.Format = imageFileDb.Format
 	imageInfo.CheckErrors = imageFileDb.CheckErrors
 	imageInfo.ImageEndOffset = imageFileDb.ImageEndOffset
