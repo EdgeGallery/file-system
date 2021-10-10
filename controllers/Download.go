@@ -166,6 +166,9 @@ func (this *DownloadController) Get() {
 	fileName := imageFileDb.SaveFileName
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + fileName
+	if imageFileDb.SlimStatus == 2 {
+		downloadPath = filePath + "compressed" + fileName
+	}
 
 	if this.Ctx.Input.Query("isZip") == "true" {
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
