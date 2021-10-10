@@ -345,6 +345,7 @@ func (c *UploadController) Post() {
 		return
 	}
 	go func() {
+		log.Warn("go routine is here")
 		//此时瘦身结束，查看Check Response详情
 		isCheckFinished := false
 		checkTimes := 60
