@@ -95,15 +95,14 @@ func (this *ImageController) Get() {
 	body, err := ioutil.ReadAll(response.Body)
 
 	log.Error("string:" + string(body))
-	var checkStatusResponse CheckStatusResponse
 
+	var checkStatusResponse CheckStatusResponse
 	err = json.Unmarshal(body, &checkStatusResponse)
 	if err != nil {
 		this.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 		return
 	}
 	slimStatus := imageFileDb.SlimStatus
-
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":             imageId,
 		"fileName":            filename,
