@@ -344,7 +344,6 @@ func (c *UploadController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
-	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 	go func() {
 		//此时瘦身结束，查看Check Response详情
 		isCheckFinished := false
@@ -390,6 +389,8 @@ func (c *UploadController) Post() {
 			}
 		}
 	}()
+	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+
 }
 
 func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
