@@ -20,13 +20,10 @@
 package controllers
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 	"os"
 )
 
@@ -72,37 +69,25 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
-	requestId := imageFileDb.RequestIdCheck
-	//requestId := "ec2a7252-28f9-11ec-a609-0242ac110002"
-	if len(requestId) == 0 {
-		this.Ctx.WriteString("check requestId is empty, this image doesn't check yet")
-		return
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	//http://imageops/api/v1/vmimage/check
-	response, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestId)
-	//response, err := client.Get("http://192.168.1.57:5000/api/v1/vmimage/check/ec2a7252-28f9-11ec-a609-0242ac110002")
-	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage check")
-		return
-	}
-
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-
-	log.Error("string:" + string(body))
+	slimStatus := imageFileDb.SlimStatus
 
 	var checkStatusResponse CheckStatusResponse
-	err = json.Unmarshal(body, &checkStatusResponse)
-	if err != nil {
-		this.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
-		return
-	}
-	slimStatus := imageFileDb.SlimStatus
+	var checkInfo CheckInfo
+	var imageInfo ImageInfo
+
+	imageInfo.Filename = "compressed" + imageFileDb.SaveFileName
+	imageInfo.Format = imageFileDb.Format
+	imageInfo.CheckErrors = imageFileDb.CheckErrors
+	imageInfo.ImageEndOffset = imageFileDb.ImageEndOffset
+
+	checkInfo.Checksum = imageFileDb.Checksum
+	checkInfo.CheckResult = imageFileDb.CheckResult
+	checkInfo.ImageInformation = imageInfo
+
+	checkStatusResponse.Msg = imageFileDb.CheckMsg
+	checkStatusResponse.Status = imageFileDb.CheckStatus
+	checkStatusResponse.CheckInformation = checkInfo
+
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":             imageId,
 		"fileName":            filename,

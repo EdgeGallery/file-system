@@ -37,6 +37,8 @@ type ImageDB struct {
 	RequestIdCompress string
 	Checksum          string
 	CheckResult       int
+	CheckMsg          string
+	CheckStatus       int
 	ImageEndOffset    string
 	CheckErrors       string
 	Format            string

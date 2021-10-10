@@ -165,7 +165,6 @@ func (this *DownloadController) Get() {
 
 	fileName := imageFileDb.SaveFileName
 	originalName := imageFileDb.FileName
-
 	downloadPath := filePath + fileName
 
 	if this.Ctx.Input.Query("isZip") == "true" {
