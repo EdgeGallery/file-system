@@ -47,11 +47,11 @@ func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userI
 		RequestIdCheck: requestIdCheck,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
-	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
 		log.Error("Failed to save file record to database.")
 		return err
 	}
-	log.Info("Add file record: %+v", fileRecord)
+	log.Info(util.FileRecord, fileRecord)
 	return nil
 }
 
@@ -72,11 +72,11 @@ func (c *MergeChunkController) insertOrUpdateCheckRecord(imageId, fileName, user
 		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
-	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
 		log.Error("Failed to save file record to database.")
 		return err
 	}
-	log.Info("Add file record: %+v", fileRecord)
+	log.Info(util.FileRecord, fileRecord)
 	return nil
 }
 
@@ -234,7 +234,7 @@ func (c *MergeChunkController) Post() {
 
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
-		log.Error("fail to insert imageID, filename, userID to database")
+		log.Error(util.FailedToInsertDataToDB)
 		return
 	}
 	//delete the emp file path
@@ -261,49 +261,44 @@ func (c *MergeChunkController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
-	go func() {
-		//此时瘦身结束，查看Check Response详情
-		isCheckFinished := false
-		checkTimes := 60
-		for !isCheckFinished && checkTimes > 0 {
-			checkTimes--
-			if len(requestIdCheck) == 0 {
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
-				return
-			}
-			responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+	go c.helper(requestIdCheck, clientIp, client, imageId, filename, userId, storageMedium, saveFileName)
+
+}
+
+func (c *MergeChunkController) helper(requestIdCheck string, clientIp string, client *http.Client, imageId string, filename string, userId string, storageMedium string, saveFileName string) {
+	//此时瘦身结束，查看Check Response详情
+	isCheckFinished := false
+	checkTimes := 60
+	for !isCheckFinished && checkTimes > 0 {
+		checkTimes--
+		if len(requestIdCheck) == 0 {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
+			return
+		}
+		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
+			return
+		}
+		defer responseCheck.Body.Close()
+		bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
+		var checkStatusResponse CheckStatusResponse
+		err = json.Unmarshal(bodyCheck, &checkStatusResponse)
+		if err != nil {
+			c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
+			return
+		}
+		if checkStatusResponse.Status == 4 { // check in progress
+			time.Sleep(time.Duration(30) * time.Second)
+			continue
+		} else {      //check completed
+			isCheckFinished = true
+			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 			if err != nil {
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
+				log.Error(util.FailedToInsertDataToDB)
+				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 				return
-			}
-			defer responseCheck.Body.Close()
-			bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
-			var checkStatusResponse CheckStatusResponse
-			err = json.Unmarshal(bodyCheck, &checkStatusResponse)
-			if err != nil {
-				c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
-				return
-			}
-			if checkStatusResponse.Status == 4 { // check in progress
-				time.Sleep(time.Duration(30) * time.Second)
-				continue
-			} else if checkStatusResponse.Status == 0 { //check completed
-				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
-				if err != nil {
-					log.Error("fail to insert imageID, filename, userID to database")
-					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
-					return
-				}
-			} else {
-				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
-				if err != nil {
-					log.Error("fail to insert imageID, filename, userID to database")
-					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
-					return
-				}
 			}
 		}
-	}()
+	}
 }

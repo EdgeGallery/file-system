@@ -37,9 +37,12 @@ const (
 
 	ClientIpaddressInvalid          = "clientIp address is invalid"
 	LastInsertIdNotSupported string = "LastInsertId is not supported by this driver"
+	FileRecord               string = "Add file record: %+v"
 	FailedToDecompress              = "Failed to decompress zip file"
 	FailedToDeleteCache             = "Failed to delete cache file"
 	FailedToUnmarshal               = "failed to unmarshal request"
+	FailedToInsertDataToDB   string = "fail to insert imageID, filename, userID to database"
+	FailToInsertRequestCheck string = "fail to insert request imageOps check to db"
 	Default                  string = "default"
 	MaxFileNameSize                 = 128
 	MaxAppPackageFile        int64  = 536870912000 //fix file size here
@@ -59,13 +62,13 @@ const (
 	FileName                 string = "filename"
 	DriverName               string = "postgres"
 	SslMode                  string = "disable"
-	minPasswordSize         = 8
-	maxPasswordSize         = 16
-	maxPasswordCount        = 2
-	singleDigitRegex string = `\d`
-	lowerCaseRegex   string = `[a-z]`
-	upperCaseRegex   string = `[A-Z]`
-	specialCharRegex string = `['~!@#$%^&()-_=+\|[{}\];:'",<.>/?]`
+	minPasswordSize                 = 8
+	maxPasswordSize                 = 16
+	maxPasswordCount                = 2
+	singleDigitRegex         string = `\d`
+	lowerCaseRegex           string = `[a-z]`
+	upperCaseRegex           string = `[A-Z]`
+	specialCharRegex         string = `['~!@#$%^&()-_=+\|[{}\];:'",<.>/?]`
 )
 
 // Validate file size
@@ -93,7 +96,7 @@ func ValidateSrcAddress(id string) error {
 // Validate file extension
 func ValidateFileExtension(fileName string) error {
 	extension := filepath.Ext(fileName)
-	if extension != ".zip" && extension != ".qcow2" && extension != ".img" &&extension!=".iso" {
+	if extension != ".zip" && extension != ".qcow2" && extension != ".img" && extension != ".iso" {
 		return errors.New("file extension is not supported")
 	}
 	return nil
@@ -103,7 +106,6 @@ func ValidateFileExtension(fileName string) error {
 func GetAppConfig(k string) string {
 	return beego.AppConfig.String(k)
 }
-
 
 // Get db user
 func GetDbUser() string {
