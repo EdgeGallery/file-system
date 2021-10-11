@@ -329,6 +329,7 @@ func (c *UploadController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
+	log.Info("begin to go routine")
 	go c.asyCall(requestIdCheck,imageId)
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 }
