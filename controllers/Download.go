@@ -164,11 +164,12 @@ func (this *DownloadController) Get() {
 	}
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + imageFileDb.ImageId + imageFileDb.FileName
+	log.Info("originalName is" + originalName)
 	log.Info("download path is" + downloadPath)
 	if imageFileDb.SlimStatus == 2 {
 		downloadPath = filePath + "compressed" + imageFileDb.ImageId + imageFileDb.FileName
 	}
-
+	log.Info("originalName is" + originalName)
 	if this.Ctx.Input.Query("isZip") == "true" {
 		log.Info("begin to compress")
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
@@ -200,8 +201,9 @@ func (this *DownloadController) Get() {
 			log.Error("failed to compress upload file")
 			return
 		}
+		log.Info("downloadName: " + downloadName)
 		this.Ctx.Output.Download(downloadPath, downloadName)
-		err = os.Remove(filePath+downloadName)
+/*		err = os.Remove(filePath+downloadName)
 		if err != nil {
 			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 			return
@@ -210,8 +212,9 @@ func (this *DownloadController) Get() {
 		if err != nil {
 			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 			return
-		}
+		}*/
 	} else {
+		log.Info("originalName is" + originalName)
 		this.Ctx.Output.Download(downloadPath,originalName)
 	}
 
