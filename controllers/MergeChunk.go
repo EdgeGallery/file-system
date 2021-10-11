@@ -55,9 +55,13 @@ func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userI
 	return nil
 }
 
-func (c *MergeChunkController) insertOrUpdateCheckRecord(imageId string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
+func (c *MergeChunkController) insertOrUpdateCheckRecord(imageId, fileName, userId, storageMedium, saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
 	fileRecord := &models.ImageDB{
 		ImageId:        imageId,
+		FileName:       fileName,
+		UserId:         userId,
+		StorageMedium:  storageMedium,
+		SaveFileName:   saveFileName,
 		SlimStatus:     slimStatus,
 		Checksum:       checkStatusResponse.CheckInformation.Checksum,
 		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
@@ -284,7 +288,7 @@ func (c *MergeChunkController) Post() {
 				continue
 			} else if checkStatusResponse.Status == 0 { //check completed
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, 2, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 2, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
@@ -292,7 +296,7 @@ func (c *MergeChunkController) Post() {
 				}
 			} else {
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, 3, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 3, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
