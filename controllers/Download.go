@@ -166,6 +166,7 @@ func (this *DownloadController) Get() {
 	fileName := imageFileDb.SaveFileName
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + fileName
+	log.Info("download path is" + downloadPath)
 	if imageFileDb.SlimStatus == 2 {
 		downloadPath = filePath + "compressed" + fileName
 	}
