@@ -269,18 +269,23 @@ func (c *UploadController) Post() {
 	if filepath.Ext(head.Filename) == ".zip" {
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
 		decompressFilePath := storageMedium + saveFileName
-		arr, err := DeCompress(decompressFilePath, storageMedium)
+		arr, err := DeCompress(decompressFilePath, storageMedium+filenameWithoutExt)
 		if err != nil {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
 			return
 		}
 		originalName = subString(arr[0], strings.LastIndex(arr[0], "/")+1, len(arr[0]))
 		saveFileName = imageId + originalName
-		srcFileName := storageMedium + filenameWithoutExt + "/" + originalName
+		srcFileName := arr[0]
 		dstFileName := storageMedium + saveFileName
 		_, err = CopyFile(srcFileName, dstFileName)
 		if err != nil {
 			log.Error("when decompress, failed to copy file")
+			return
+		}
+		err = os.RemoveAll(storageMedium + filenameWithoutExt + "/")
+		if err != nil {
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete tmp file package in vm")
 			return
 		}
 		err = os.Remove(decompressFilePath)
