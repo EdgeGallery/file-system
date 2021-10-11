@@ -149,7 +149,7 @@ func (this *DownloadController) Get() {
 	var imageFileDb models.ImageDB
 
 	imageId := this.Ctx.Input.Param(":imageId")
-
+	log.Info("query db ok.")
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
 	if err != nil {
@@ -162,7 +162,6 @@ func (this *DownloadController) Get() {
 		this.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
 		return
 	}
-
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + imageFileDb.ImageId + imageFileDb.FileName
 	log.Info("download path is" + downloadPath)
@@ -171,14 +170,19 @@ func (this *DownloadController) Get() {
 	}
 
 	if this.Ctx.Input.Query("isZip") == "true" {
+		log.Info("begin to compress")
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
+		log.Info("filenameWithoutExt:" + filenameWithoutExt)
 		zipFilePath := filePath + filenameWithoutExt
+		log.Info("zipFilePath :" + zipFilePath )
 		err := createDirectory(zipFilePath)
 		if err != nil {
 			log.Error("when compress, failed to create file path")
 			return
 		}
 		_, err = CopyFile(downloadPath, zipFilePath+"/"+originalName)
+		log.Info("downloadPath :" + downloadPath)
+		log.Info("copy file to " + zipFilePath+"/"+originalName)
 		if err != nil {
 			log.Error("when compress, failed to copy file")
 			return
@@ -190,6 +194,7 @@ func (this *DownloadController) Get() {
 		}
 		var files = []*os.File{f1}
 		downloadName := strings.TrimSuffix(originalName, filepath.Ext(originalName)) + ".zip"
+		log.Info("filePath+downloadName: " + filePath+downloadName)
 		err = Compress(files, filePath+downloadName)
 		if err != nil {
 			log.Error("failed to compress upload file")
