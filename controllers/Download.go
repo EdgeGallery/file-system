@@ -163,12 +163,11 @@ func (this *DownloadController) Get() {
 		return
 	}
 
-	fileName := imageFileDb.SaveFileName
 	originalName := imageFileDb.FileName
-	downloadPath := filePath + fileName
+	downloadPath := filePath + imageFileDb.ImageId + imageFileDb.FileName
 	log.Info("download path is" + downloadPath)
 	if imageFileDb.SlimStatus == 2 {
-		downloadPath = filePath + "compressed" + fileName
+		downloadPath = filePath + "compressed" + imageFileDb.ImageId + imageFileDb.FileName
 	}
 
 	if this.Ctx.Input.Query("isZip") == "true" {
