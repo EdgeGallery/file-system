@@ -366,7 +366,7 @@ func (c *UploadController) Post() {
 				continue
 			} else if checkStatusResponse.Status == 0 { //check completed
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 1, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
