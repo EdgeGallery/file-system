@@ -297,7 +297,7 @@ func (c *MergeChunkController) Post() {
 				}
 			} else {
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 3, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
