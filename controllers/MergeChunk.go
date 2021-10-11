@@ -175,15 +175,15 @@ func (c *MergeChunkController) Post() {
 	saveFileName := imageId + filename
 	if filepath.Ext(filename) == ".zip" {
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
-		decompressFilePath := storageMedium + saveFileName
-		arr, err := DeCompress(saveFilePath, storageMedium)
+		decompressFilePath := saveFilePath
+		arr, err := DeCompress(decompressFilePath, storageMedium+filenameWithoutExt)
 		if err != nil {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailedToDecompress)
 			return
 		}
 		originalName := subString(arr[0], strings.LastIndex(arr[0], "/")+1, len(arr[0]))
 		saveFileName = imageId + originalName
-		srcFileName := storageMedium + filenameWithoutExt + "/" + originalName
+		srcFileName := arr[0]
 		dstFileName := storageMedium + saveFileName
 		_, err = CopyFile(srcFileName, dstFileName)
 		if err != nil {
@@ -289,7 +289,7 @@ func (c *MergeChunkController) Post() {
 				continue
 			} else if checkStatusResponse.Status == 0 { //check completed
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 1, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to insert request imageOps check to db")
