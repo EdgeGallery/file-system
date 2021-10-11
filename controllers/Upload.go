@@ -68,15 +68,14 @@ func CreateImageID() string {
 	return uuId.String()
 }
 
-
-func (c *UploadController) insertOrUpdateCheckRecord(imageId,fileName,userId,storageMedium,saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
+func (c *UploadController) insertOrUpdateCheckRecord(imageId, fileName, userId, storageMedium, saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
 	fileRecord := &models.ImageDB{
 		ImageId:        imageId,
 		SlimStatus:     slimStatus,
-		FileName: fileName,
-		UserId: userId,
-		StorageMedium: storageMedium,
-		SaveFileName: saveFileName,
+		FileName:       fileName,
+		UserId:         userId,
+		StorageMedium:  storageMedium,
+		SaveFileName:   saveFileName,
 		Checksum:       checkStatusResponse.CheckInformation.Checksum,
 		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
 		CheckMsg:       checkStatusResponse.Msg,
@@ -367,7 +366,7 @@ func (c *UploadController) Post() {
 				continue
 			} else if checkStatusResponse.Status == 0 { //check completed
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId,filename ,userId,storageMedium,saveFileName,1, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 1, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
@@ -375,7 +374,7 @@ func (c *UploadController) Post() {
 				}
 			} else {
 				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId,filename ,userId,storageMedium,saveFileName, 3, checkStatusResponse)
+				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 3, checkStatusResponse)
 				if err != nil {
 					log.Error("fail to insert imageID, filename, userID to database")
 					c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
