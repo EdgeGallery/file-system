@@ -260,6 +260,7 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+
 	go func() {
 		//此时瘦身结束，查看Check Response详情
 		isCheckFinished := false
