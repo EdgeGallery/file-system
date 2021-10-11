@@ -82,8 +82,12 @@ func (c *SlimController) PathCheck(path string) bool {
 	return false
 }
 
-func (c *SlimController) insertOrUpdatePostRecord(imageId string, slimStatus int, requestId string) error {
+func (c *SlimController) insertOrUpdatePostRecord(imageId,fileName, userId, storageMedium, saveFileName string, slimStatus int, requestId string) error {
 	fileRecord := &models.ImageDB{
+		FileName: fileName,
+		UserId: userId,
+		StorageMedium: storageMedium,
+		SaveFileName: saveFileName,
 		ImageId:           imageId,
 		SlimStatus:        slimStatus,
 		RequestIdCompress: requestId,
@@ -97,9 +101,13 @@ func (c *SlimController) insertOrUpdatePostRecord(imageId string, slimStatus int
 	return nil
 }
 
-func (c *SlimController) insertOrUpdateCheckPostRecord(imageId string, slimStatus int, requestId string) error {
+func (c *SlimController) insertOrUpdateCheckPostRecord(imageId,fileName, userId, storageMedium, saveFileName string, slimStatus int, requestId string) error {
 	fileRecord := &models.ImageDB{
 		ImageId:        imageId,
+		FileName: fileName,
+		UserId: userId,
+		StorageMedium: storageMedium,
+		SaveFileName: saveFileName,
 		SlimStatus:     slimStatus,
 		RequestIdCheck: requestId,
 	}
@@ -203,13 +211,13 @@ func (c *SlimController) Post() {
 	responseStatus := compressRes.Status //0:compress in progress  1: compress failed
 	if responseStatus == 0 {
 		c.Ctx.WriteString("compress in progress")
-		err = c.insertOrUpdatePostRecord(imageId, 1, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		err = c.insertOrUpdatePostRecord(imageId,imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
 			log.Error("fail to insert imageId,slimStatus,requestId to database")
 			return
 		}
 	} else if responseStatus == 1 {
-		err = c.insertOrUpdatePostRecord(imageId, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName,3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "imageOps compress failed")
 		return
 	}
@@ -239,7 +247,7 @@ func (c *SlimController) Post() {
 			   continue
 		   } else if compressStatusResponse.Status == 0 { //compress finished
 			   //瘦身成功后，及时更新数据库
-			   err = c.insertOrUpdatePostRecord(imageId, 2, requestIdCompress) // slimStatus == 2 瘦身成功
+			   err = c.insertOrUpdatePostRecord(imageId,imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 2, requestIdCompress) // slimStatus == 2 瘦身成功
 			   isCompressFinished = true
 			   saveFileName := imageFileDb.SaveFileName
 			   var formConfigMap map[string]string
@@ -264,11 +272,11 @@ func (c *SlimController) Post() {
 				   c.Ctx.WriteString("check requestId is empty, check if imageOps is ok")
 				   return
 			   }
-			   err = c.insertOrUpdateCheckPostRecord(imageId, 2, requestIdCheck) // slimStatus == 2 瘦身成功
+			   err = c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName,2, requestIdCheck) // slimStatus == 2 瘦身成功
 			   break
 		   } else if compressStatusResponse.Status == 2 { //compress failed
 			   isCompressFinished = true
-			   err = c.insertOrUpdatePostRecord(imageId, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			   err = c.insertOrUpdatePostRecord(imageId,imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			   c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "imageOps compress failed")
 			   return
 		   }
