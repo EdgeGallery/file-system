@@ -251,8 +251,8 @@ func (c *MergeChunkController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"isSlimmed":     slimStatus,
-		"status":        status,
+		"slimStatus":    slimStatus,
+		"checkStatus":   status,
 		"msg":           msg,
 	})
 	if err != nil {
