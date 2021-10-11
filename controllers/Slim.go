@@ -251,7 +251,7 @@ func (c *SlimController) Post() {
 				continue
 			} else if compressStatusResponse.Status == 0 { //compress finished
 				//瘦身成功后，及时更新数据库
-				err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 2, requestIdCompress) // slimStatus == 2 瘦身成功
+				//err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCompress) // slimStatus == 2 瘦身成功
 				isCompressFinished = true
 				saveFileName := imageFileDb.SaveFileName
 				var formConfigMap map[string]string
@@ -276,7 +276,7 @@ func (c *SlimController) Post() {
 					c.Ctx.WriteString("check requestId is empty, check if imageOps is ok")
 					return
 				}
-				err = c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 2, requestIdCheck) // slimStatus == 2 瘦身成功
+				err = c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCheck) // slimStatus == 1 瘦身中
 				break
 			} else if compressStatusResponse.Status == 2 { //compress failed
 				isCompressFinished = true
@@ -288,7 +288,7 @@ func (c *SlimController) Post() {
 
 		//此时瘦身结束，查看Check Response详情
 		isCheckFinished := false
-		checkTimes = 60
+		checkTimes = 180  //30 MinS
 		for !isCheckFinished && checkTimes > 0 {
 			checkTimes--
 			if len(requestIdCheck) == 0 {
@@ -309,7 +309,7 @@ func (c *SlimController) Post() {
 				return
 			}
 			if checkStatusResponse.Status == 4 { // check in progress
-				time.Sleep(time.Duration(30) * time.Second)
+				time.Sleep(time.Duration(10) * time.Second)
 				continue
 			} else if checkStatusResponse.Status == 0 { //check completed
 				isCheckFinished = true
@@ -331,188 +331,3 @@ func (c *SlimController) Post() {
 		}
 	}()
 }
-
-/*
-// @Title Get
-// @Description perform image slim operation
-// @Param	imageId 	string
-// @Success 200 ok
-// @Failure 400 bad request
-// @router "/image-management/v1/images/:imageId/action/slim [get]
-func (c *SlimController) Get() {
-	log.Info("image slim Get request received.")
-	clientIp := c.Ctx.Input.IP()
-	err := util.ValidateSrcAddress(clientIp)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
-		return
-	}
-	c.displayReceivedMsg(clientIp)
-
-	var imageFileDb models.ImageDB
-	imageId := c.Ctx.Input.Param(":imageId")
-	_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
-		return
-	}
-
-	requestIdCompress := imageFileDb.RequestIdCompress
-
-	if len(requestIdCompress) == 0 {
-		c.Ctx.WriteString("requestId is empty, this image doesn't begin slimming yet")
-		return
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	client := &http.Client{Transport: tr}
-	//http://imageops/api/v1/vmimage/compress
-	response, err := client.Get("http://localhost:5000/api/v1/vmimage/compress/" + requestIdCompress)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request vmimage compress check")
-		return
-	}
-
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-
-	log.Error("string:" + string(body))
-	var compressStatusResponse CompressStatusResponse
-	err = json.Unmarshal(body, &compressStatusResponse)
-	if err != nil {
-		log.Error("fail to request http://localhost:5000/api/v1/vmimage/compress/" + requestIdCompress)
-		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
-		return
-	}
-
-	// 0: compress completed; 1: compress in progress; 2: compress failed
-	compressStatus := compressStatusResponse.Status
-	var slimStatus int       //[0,1,2,3]  未瘦身/瘦身中/成功/失败
-	if compressStatus == 0 { // 瘦身成功 瘦身前后两个镜像文件用同一个imageId，用“compressed”关键字区分
-		if imageFileDb.SlimStatus == 2 { //查库
-			var checkStatusResponse CheckStatusResponse
-			var checkInfo CheckInfo
-			var imageInfo ImageInfo
-
-			imageInfo.Filename = "compressed" + imageFileDb.SaveFileName
-			imageInfo.Format = imageFileDb.Format
-			imageInfo.CheckErrors = imageFileDb.CheckErrors
-			imageInfo.ImageEndOffset = imageFileDb.ImageEndOffset
-
-			checkInfo.Checksum = imageFileDb.Checksum
-			checkInfo.CheckResult = imageFileDb.CheckResult
-			checkInfo.ImageInformation = imageInfo
-
-			checkStatusResponse.Msg = "Check completed"
-			checkStatusResponse.Status = 0
-			checkStatusResponse.CheckInformation = checkInfo
-
-			CheckResp, err := json.Marshal(map[string]interface{}{
-				"imageId":             imageId,
-				"fileName":            "compressed" + imageFileDb.SaveFileName,
-				"uploadTime":          imageFileDb.UploadTime.Format("2006-01-02 15:04:05"),
-				"userId":              imageFileDb.UserId,
-				"storageMedium":       imageFileDb.StorageMedium,
-				"slimStatus":          2,
-				"checkStatusResponse": checkStatusResponse,
-			})
-			if err != nil {
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to marshal check details")
-				return
-			}
-			_, _ = c.Ctx.ResponseWriter.Write(CheckResp)
-			return
-		}
-		slimStatus = 2
-		saveFileName := imageFileDb.SaveFileName
-		var formConfigMap map[string]string
-		formConfigMap = make(map[string]string)
-		formConfigMap["inputImageName"] = "compressed" + saveFileName
-		requestJson, _ := json.Marshal(formConfigMap)
-		requestBody := bytes.NewReader(requestJson)
-
-		response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusNotFound, "slim GET cannot send request to imagesOps")
-			return
-		}
-		defer response.Body.Close()
-		body, err := ioutil.ReadAll(response.Body)
-		var checkResponse CheckResponse
-		err = json.Unmarshal(body, &checkResponse)
-		if err != nil {
-			c.writeErrorResponse("Slim POST to image check failed to unmarshal request", util.BadRequest)
-		}
-		requestIdCheck := checkResponse.RequestId
-		if len(requestIdCheck) == 0 {
-			c.Ctx.WriteString("check requestId is empty, check if imageOps is ok")
-			return
-		}
-
-		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
-			return
-		}
-		defer responseCheck.Body.Close()
-		bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
-		var checkStatusResponse CheckStatusResponse
-		err = json.Unmarshal(bodyCheck, &checkStatusResponse)
-		if err != nil {
-			c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
-			return
-		}
-
-		err = c.insertOrUpdateCheckRecord(imageId, slimStatus, checkStatusResponse)
-		if err != nil {
-			log.Error("fail to insert imageID, filename, userID to database")
-			return
-		}
-
-		CheckResp, err := json.Marshal(map[string]interface{}{
-			"imageId":             imageId,
-			"fileName":            "compressed" + saveFileName,
-			"uploadTime":          imageFileDb.UploadTime.Format("2006-01-02 15:04:05"),
-			"userId":              imageFileDb.UserId,
-			"storageMedium":       imageFileDb.StorageMedium,
-			"slimStatus":          slimStatus,
-			"checkStatusResponse": checkStatusResponse,
-		})
-
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
-			return
-		}
-
-		_, _ = c.Ctx.ResponseWriter.Write(CheckResp)
-		return
-	} else if compressStatus == 1 { // 瘦身中
-		slimStatus = 1
-	} else if compressStatus == 2 { // 瘦身失败
-		slimStatus = 3
-	}
-	err = c.insertOrUpdatePostRecord(imageId, slimStatus, requestIdCompress) //update slimStatus
-	if err != nil {
-		log.Error("fail to insert imageId,slimStatus,requestId to database")
-		return
-	}
-	slimMsg := compressStatusResponse.Msg
-	slimRate := compressStatusResponse.Rate
-
-	checkResp, err := json.Marshal(map[string]interface{}{
-		"imageId":    imageId,
-		"uploadTime": time.Now().Format("2006-01-02 15:04:05"),
-		"slimStatus": slimStatus,
-		"slimMsg":    slimMsg,
-		"slimRate":   slimRate,
-	})
-
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return check details")
-		return
-	}
-	_, _ = c.Ctx.ResponseWriter.Write(checkResp)
-}*/
