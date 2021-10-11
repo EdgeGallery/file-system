@@ -68,6 +68,28 @@ func CreateImageID() string {
 	return uuId.String()
 }
 
+
+func (c *UploadController) insertOrUpdateCheckRecord(imageId string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
+	fileRecord := &models.ImageDB{
+		ImageId:        imageId,
+		SlimStatus:     slimStatus,
+		Checksum:       checkStatusResponse.CheckInformation.Checksum,
+		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
+		CheckMsg:       checkStatusResponse.Msg,
+		CheckStatus:    checkStatusResponse.Status,
+		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
+		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
+		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
+	}
+	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
+	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
+		log.Error("Failed to save file record to database.")
+		return err
+	}
+	log.Info("Add file record: %+v", fileRecord)
+	return nil
+}
+
 func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, requestIdCheck string) error {
 
 	fileRecord := &models.ImageDB{
@@ -223,19 +245,15 @@ func (c *UploadController) Get() {
 // @router "/image-management/v1/images [post]
 func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
-
 	clientIp, err, file, head, isDone := c.foreCheck()
 	if isDone {
 		return
 	}
-
 	defer file.Close()
-
 	filename := head.Filename //original name for file   1.zip or 1.qcow2
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
 	imageId := CreateImageID()
-
 	storageMedium := c.getStorageMedium(priority)
 	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
 	err = c.saveByPriority(priority, saveFileName)
@@ -244,7 +262,6 @@ func (c *UploadController) Post() {
 		return
 	}
 	originalName := filename
-
 	//if file is zip file, decompress it to image file
 	if filepath.Ext(head.Filename) == ".zip" {
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
@@ -269,44 +286,35 @@ func (c *UploadController) Post() {
 			return
 		}
 	}
-
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-
 	var formConfigMap map[string]string
 	formConfigMap = make(map[string]string)
 	formConfigMap["inputImageName"] = saveFileName
-
 	requestJson, _ := json.Marshal(formConfigMap)
 	requestBody := bytes.NewReader(requestJson)
-
 	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
 		return
 	}
-
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
-
 	var checkResponse CheckResponse
 	err = json.Unmarshal(body, &checkResponse)
 	if err != nil {
 		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 	}
-
 	status := checkResponse.Status
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
-
 	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
 		log.Error("fail to insert imageID, filename, userID to database")
 		return
 	}
-
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      originalName,
@@ -317,12 +325,64 @@ func (c *UploadController) Post() {
 		"status":        status,
 		"msg":           msg,
 	})
-
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
+	log.Info("begin to go routine")
+	go c.asyCall(requestIdCheck,imageId)
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+}
+
+func (c *UploadController) asyCall(requestIdCheck,imageId string) {
+	log.Warn("go routine is here")
+	//此时瘦身结束，查看Check Response详情
+	isCheckFinished := false
+	checkTimes := 60
+	for !isCheckFinished && checkTimes > 0 {
+		checkTimes--
+		if len(requestIdCheck) == 0 {
+			c.writeErrorResponse("after POST check to imageOps, check requestId is till empty", util.StatusInternalServerError)
+			return
+		}
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+		if err != nil {
+			c.writeErrorResponse("fail to request imageOps check", util.StatusInternalServerError)
+			return
+		}
+		defer responseCheck.Body.Close()
+		bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
+		var checkStatusResponse CheckStatusResponse
+		err = json.Unmarshal(bodyCheck, &checkStatusResponse)
+		if err != nil {
+			c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
+			return
+		}
+		if checkStatusResponse.Status == 4 { // check in progress
+			time.Sleep(time.Duration(30) * time.Second)
+			continue
+		} else if checkStatusResponse.Status == 0 { //check completed
+			isCheckFinished = true
+			err = c.insertOrUpdateCheckRecord(imageId, 2, checkStatusResponse)
+			if err != nil {
+				log.Error("fail to insert imageID, filename, userID to database")
+				c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
+				return
+			}
+		} else {
+			isCheckFinished = true
+			err = c.insertOrUpdateCheckRecord(imageId, 3, checkStatusResponse)
+			if err != nil {
+				log.Error("fail to insert imageID, filename, userID to database")
+				c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
+				return
+			}
+		}
+	}
 }
 
 func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
