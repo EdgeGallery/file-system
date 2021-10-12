@@ -43,6 +43,8 @@ const (
 	FailedToUnmarshal               = "failed to unmarshal request"
 	FailedToInsertDataToDB   string = "fail to insert imageID, filename, userID to database"
 	FailToInsertRequestCheck string = "fail to insert request imageOps check to db"
+	OriginalNameIs                  = "originalName is"
+	FailToRecordToDB                = "Failed to save file record to database."
 	Default                  string = "default"
 	MaxFileNameSize                 = 128
 	MaxAppPackageFile        int64  = 536870912000 //fix file size here

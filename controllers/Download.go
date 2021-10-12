@@ -171,12 +171,12 @@ func (this *DownloadController) Get() {
 	}
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + imageFileDb.ImageId + imageFileDb.FileName
-	log.Info("originalName is" + originalName)
+	log.Info(util.OriginalNameIs + originalName)
 	log.Info("download path is" + downloadPath)
 	if imageFileDb.SlimStatus == 2 {
 		downloadPath = filePath + "compressed" + imageFileDb.ImageId + imageFileDb.FileName
 	}
-	log.Info("originalName is" + originalName)
+	log.Info(util.OriginalNameIs + originalName)
 	this.dealWithDownload(originalName, filePath, downloadPath)
 }
 
@@ -216,7 +216,7 @@ func (this *DownloadController) dealWithDownload(originalName string, filePath s
 		this.Ctx.Output.Download(filePath+downloadName, downloadName)
 		this.deleteCache(err, filePath, downloadName, zipFilePath)
 	} else {
-		log.Info("originalName is" + originalName)
+		log.Info(util.OriginalNameIs + originalName)
 		this.Ctx.Output.Download(downloadPath, originalName)
 	}
 }

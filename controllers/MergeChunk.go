@@ -48,32 +48,7 @@ func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userI
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
-		return err
-	}
-	log.Info(util.FileRecord, fileRecord)
-	return nil
-}
-
-func (c *MergeChunkController) insertOrUpdateCheckRecord(imageId, fileName, userId, storageMedium, saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
-	fileRecord := &models.ImageDB{
-		ImageId:        imageId,
-		FileName:       fileName,
-		UserId:         userId,
-		StorageMedium:  storageMedium,
-		SaveFileName:   saveFileName,
-		SlimStatus:     slimStatus,
-		Checksum:       checkStatusResponse.CheckInformation.Checksum,
-		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
-		CheckMsg:       checkStatusResponse.Msg,
-		CheckStatus:    checkStatusResponse.Status,
-		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
-		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
-		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
-	}
-	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
-	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
+		log.Error(util.FailToRecordToDB)
 		return err
 	}
 	log.Info(util.FileRecord, fileRecord)
@@ -261,11 +236,11 @@ func (c *MergeChunkController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
-	go c.helper(requestIdCheck, clientIp, client, imageId, filename, userId, storageMedium, saveFileName)
+	go c.helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName)
 
 }
 
-func (c *MergeChunkController) helper(requestIdCheck string, clientIp string, client *http.Client, imageId string, filename string, userId string, storageMedium string, saveFileName string) {
+func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName string) {
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
 	checkTimes := 60
@@ -275,6 +250,10 @@ func (c *MergeChunkController) helper(requestIdCheck string, clientIp string, cl
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
 			return
 		}
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
 		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
 		if err != nil {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
@@ -291,7 +270,7 @@ func (c *MergeChunkController) helper(requestIdCheck string, clientIp string, cl
 		if checkStatusResponse.Status == 4 { // check in progress
 			time.Sleep(time.Duration(30) * time.Second)
 			continue
-		} else {      //check completed
+		} else { //check completed
 			isCheckFinished = true
 			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 			if err != nil {
