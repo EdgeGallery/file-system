@@ -213,19 +213,26 @@ func (this *DownloadController) dealWithDownload(originalName string, filePath s
 			return
 		}
 		log.Info("downloadName: " + downloadName)
-		this.Ctx.Output.Download(downloadPath, downloadName)
-		err = os.Remove(filePath + downloadName)
-		if err != nil {
-			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
-		err = os.RemoveAll(zipFilePath)
-		if err != nil {
-			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
+		this.Ctx.Output.Download(filePath+downloadName, downloadName)
+		this.deleteCache(err, filePath, downloadName, zipFilePath)
 	} else {
 		log.Info("originalName is" + originalName)
 		this.Ctx.Output.Download(downloadPath, originalName)
 	}
+}
+
+func (this *DownloadController) deleteCache(err error, filePath string, downloadName string, zipFilePath string) bool {
+	err = os.RemoveAll(zipFilePath)
+	if err != nil {
+		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		return true
+	}
+
+	err = os.Remove(filePath + downloadName)
+	if err != nil {
+		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		return true
+	}
+
+	return false
 }

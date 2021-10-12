@@ -318,7 +318,7 @@ func (c *UploadController) Post() {
 	status := checkResponse.Status
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
-	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
+	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, "requestIdCheck")
 	if err != nil {
 		log.Error(util.FailedToInsertDataToDB)
 		return
