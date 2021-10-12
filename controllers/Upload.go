@@ -68,31 +68,6 @@ func CreateImageID() string {
 	return uuId.String()
 }
 
-func (c *UploadController) insertOrUpdateCheckRecord(imageId, fileName, userId, storageMedium, saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
-	fileRecord := &models.ImageDB{
-		ImageId:        imageId,
-		SlimStatus:     slimStatus,
-		FileName:       fileName,
-		UserId:         userId,
-		StorageMedium:  storageMedium,
-		SaveFileName:   saveFileName,
-		Checksum:       checkStatusResponse.CheckInformation.Checksum,
-		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
-		CheckMsg:       checkStatusResponse.Msg,
-		CheckStatus:    checkStatusResponse.Status,
-		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
-		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
-		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
-	}
-	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
-	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error(util.FailToRecordToDB)
-		return err
-	}
-	log.Info(util.FileRecord, fileRecord)
-	return nil
-}
-
 func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, requestIdCheck string) error {
 
 	fileRecord := &models.ImageDB{

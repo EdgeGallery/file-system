@@ -20,6 +20,7 @@
 package controllers
 
 import (
+	"fileSystem/models"
 	"fileSystem/pkg/dbAdpater"
 	"fileSystem/util"
 	"github.com/astaxie/beego"
@@ -30,6 +31,31 @@ import (
 type BaseController struct {
 	beego.Controller
 	Db dbAdpater.Database
+}
+
+func (c *BaseController) insertOrUpdateCheckRecord(imageId, fileName, userId, storageMedium, saveFileName string, slimStatus int, checkStatusResponse CheckStatusResponse) error {
+	fileRecord := &models.ImageDB{
+		ImageId:        imageId,
+		FileName:       fileName,
+		UserId:         userId,
+		StorageMedium:  storageMedium,
+		SaveFileName:   saveFileName,
+		SlimStatus:     slimStatus,
+		Checksum:       checkStatusResponse.CheckInformation.Checksum,
+		CheckResult:    checkStatusResponse.CheckInformation.CheckResult,
+		CheckMsg:       checkStatusResponse.Msg,
+		CheckStatus:    checkStatusResponse.Status,
+		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
+		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
+		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
+	}
+	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
+		log.Error(util.FailToRecordToDB)
+		return err
+	}
+	log.Info(util.FileRecord, fileRecord)
+	return nil
 }
 
 // To display log for received message
