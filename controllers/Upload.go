@@ -22,8 +22,6 @@ package controllers
 import (
 	"archive/zip"
 	"bufio"
-	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fileSystem/models"
@@ -32,9 +30,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,7 +290,7 @@ func (c *UploadController) Post() {
 			return
 		}
 	}
-	tr := &http.Transport{
+/*	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
@@ -314,11 +310,11 @@ func (c *UploadController) Post() {
 	err = json.Unmarshal(body, &checkResponse)
 	if err != nil {
 		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
-	}
-	status := checkResponse.Status
+	}*/
+/*	status := checkResponse.Status
 	msg := checkResponse.Msg
-	requestIdCheck := checkResponse.RequestId
-	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
+	requestIdCheck := checkResponse.RequestId*/
+	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, "requestIdCheck")
 	if err != nil {
 		log.Error(util.FailedToInsertDataToDB)
 		return
@@ -330,15 +326,15 @@ func (c *UploadController) Post() {
 		"userId":        userId,
 		"storageMedium": storageMedium,
 		"slimStatus":    0, //[0,1,2,3]  未瘦身/瘦身中/成功/失败
-		"checkStatus":   status,
-		"msg":           msg,
+/*		"checkStatus":   status,
+		"msg":           msg,*/
 	})
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
 	log.Info("begin to go routine")
-	go func() {
+	/*go func() {
 		log.Warn("go routine is here")
 		//此时瘦身结束，查看Check Response详情
 		isCheckFinished := false
@@ -387,7 +383,7 @@ func (c *UploadController) Post() {
 				}
 			}
 		}
-	}()
+	}()*/
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 }
 
