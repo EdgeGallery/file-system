@@ -86,7 +86,7 @@ func (c *UploadController) insertOrUpdateCheckRecord(imageId, fileName, userId, 
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
+		log.Error(util.FailToRecordToDB)
 		return err
 	}
 	log.Info(util.FileRecord, fileRecord)
@@ -107,7 +107,7 @@ func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, s
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
+		log.Error(util.FailToRecordToDB)
 		return err
 	}
 
@@ -294,26 +294,10 @@ func (c *UploadController) Post() {
 			return
 		}
 	}
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	var formConfigMap map[string]string
-	formConfigMap = make(map[string]string)
-	formConfigMap["inputImageName"] = saveFileName
-	requestJson, _ := json.Marshal(formConfigMap)
-	requestBody := bytes.NewReader(requestJson)
-	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+
+	err, checkResponse, done := c.postToCheck(saveFileName, err, clientIp)
+	if done {
 		return
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-	var checkResponse CheckResponse
-	err = json.Unmarshal(body, &checkResponse)
-	if err != nil {
-		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 	}
 	status := checkResponse.Status
 	msg := checkResponse.Msg
@@ -338,57 +322,77 @@ func (c *UploadController) Post() {
 		return
 	}
 	log.Info("begin to go routine")
-	go func() {
-		log.Warn("go routine is here")
-		//此时瘦身结束，查看Check Response详情
-		isCheckFinished := false
-		checkTimes := 60
-		for !isCheckFinished && checkTimes > 0 {
-			checkTimes--
-			if len(requestIdCheck) == 0 {
-				c.writeErrorResponse("after POST check to imageOps, check requestId is till empty", util.StatusInternalServerError)
-				return
-			}
-			tr := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			client := &http.Client{Transport: tr}
-			responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+
+	go c.cronGetCheck(requestIdCheck, imageId, originalName, userId, storageMedium, saveFileName)
+	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+}
+
+func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, originalName string, userId string, storageMedium string, saveFileName string) {
+	log.Warn("go routine is here")
+	//此时瘦身结束，查看Check Response详情
+	isCheckFinished := false
+	checkTimes := 60
+	for !isCheckFinished && checkTimes > 0 {
+		checkTimes--
+		if len(requestIdCheck) == 0 {
+			c.writeErrorResponse("after POST check to imageOps, check requestId is till empty", util.StatusInternalServerError)
+			return
+		}
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+		if err != nil {
+			c.writeErrorResponse("fail to request imageOps check", util.StatusInternalServerError)
+			return
+		}
+		defer responseCheck.Body.Close()
+		bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
+		var checkStatusResponse CheckStatusResponse
+		err = json.Unmarshal(bodyCheck, &checkStatusResponse)
+		if err != nil {
+			c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
+			return
+		}
+		if checkStatusResponse.Status == 4 { // check in progress
+			time.Sleep(time.Duration(30) * time.Second)
+			continue
+		} else {
+			isCheckFinished = true
+			err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 			if err != nil {
-				c.writeErrorResponse("fail to request imageOps check", util.StatusInternalServerError)
+				log.Error(util.FailedToInsertDataToDB)
+				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 				return
-			}
-			defer responseCheck.Body.Close()
-			bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
-			var checkStatusResponse CheckStatusResponse
-			err = json.Unmarshal(bodyCheck, &checkStatusResponse)
-			if err != nil {
-				c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
-				return
-			}
-			if checkStatusResponse.Status == 4 { // check in progress
-				time.Sleep(time.Duration(30) * time.Second)
-				continue
-			} else if checkStatusResponse.Status == 0 { //check completed
-				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
-				if err != nil {
-					log.Error(util.FailedToInsertDataToDB)
-					c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
-					return
-				}
-			} else {
-				isCheckFinished = true
-				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
-				if err != nil {
-					log.Error(util.FailedToInsertDataToDB)
-					c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
-					return
-				}
 			}
 		}
-	}()
-	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+	}
+}
+
+func (c *UploadController) postToCheck(saveFileName string, err error, clientIp string) (error, CheckResponse, bool) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	var formConfigMap map[string]string
+	formConfigMap = make(map[string]string)
+	formConfigMap["inputImageName"] = saveFileName
+	requestJson, _ := json.Marshal(formConfigMap)
+	requestBody := bytes.NewReader(requestJson)
+	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+		return nil, CheckResponse{}, true
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	var checkResponse CheckResponse
+	err = json.Unmarshal(body, &checkResponse)
+	if err != nil {
+		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
+	}
+	return err, checkResponse, false
 }
 
 func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
