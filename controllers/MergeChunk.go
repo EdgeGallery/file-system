@@ -48,7 +48,7 @@ func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userI
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
+		log.Error(util.FailToRecordToDB)
 		return err
 	}
 	log.Info(util.FileRecord, fileRecord)
@@ -73,7 +73,7 @@ func (c *MergeChunkController) insertOrUpdateCheckRecord(imageId, fileName, user
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		log.Error("Failed to save file record to database.")
+		log.Error(util.FailToRecordToDB)
 		return err
 	}
 	log.Info(util.FileRecord, fileRecord)
