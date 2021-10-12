@@ -85,11 +85,11 @@ func (c *UploadController) insertOrUpdateCheckRecord(imageId, fileName, userId, 
 		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
-	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
 		log.Error("Failed to save file record to database.")
 		return err
 	}
-	log.Info("Add file record: %+v", fileRecord)
+	log.Info(util.FileRecord, fileRecord)
 	return nil
 }
 
@@ -106,12 +106,12 @@ func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, s
 
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 
-	if err != nil && err.Error() != "LastInsertId is not supported by this driver" {
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
 		log.Error("Failed to save file record to database.")
 		return err
 	}
 
-	log.Info("Add file record: %+v", fileRecord)
+	log.Info(util.FileRecord, fileRecord)
 	return nil
 }
 
@@ -320,7 +320,7 @@ func (c *UploadController) Post() {
 	requestIdCheck := checkResponse.RequestId
 	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
-		log.Error("fail to insert imageID, filename, userID to database")
+		log.Error(util.FailedToInsertDataToDB)
 		return
 	}
 	uploadResp, err := json.Marshal(map[string]interface{}{
@@ -373,16 +373,16 @@ func (c *UploadController) Post() {
 				isCheckFinished = true
 				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 				if err != nil {
-					log.Error("fail to insert imageID, filename, userID to database")
-					c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
+					log.Error(util.FailedToInsertDataToDB)
+					c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 					return
 				}
 			} else {
 				isCheckFinished = true
 				err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
 				if err != nil {
-					log.Error("fail to insert imageID, filename, userID to database")
-					c.writeErrorResponse("fail to insert request imageOps check to db", util.StatusInternalServerError)
+					log.Error(util.FailedToInsertDataToDB)
+					c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 					return
 				}
 			}

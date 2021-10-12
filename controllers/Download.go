@@ -73,20 +73,9 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 	}
 	if info.IsDir() {
 		prefix = prefix + info.Name() + "/"
-		fileInfos, err := file.Readdir(-1)
-		if err != nil {
-			return err
-		}
-		for _, fi := range fileInfos {
-			f, err := os.Open(file.Name() + "/" + fi.Name())
-			if err != nil {
-				return err
-			}
-			err = compress(f, prefix, zw)
-			file.Close()
-			if err != nil {
-				return err
-			}
+		err2 := compressHelper(file, prefix, zw)
+		if err2 != nil {
+			return err2
 		}
 	} else {
 		header, err := zip.FileInfoHeader(info)
@@ -99,6 +88,25 @@ func compress(file *os.File, prefix string, zw *zip.Writer) error {
 			return err
 		}
 		_, err = io.Copy(writer, file)
+		file.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func compressHelper(file *os.File, prefix string, zw *zip.Writer) error {
+	fileInfos, err := file.Readdir(-1)
+	if err != nil {
+		return err
+	}
+	for _, fi := range fileInfos {
+		f, err := os.Open(file.Name() + "/" + fi.Name())
+		if err != nil {
+			return err
+		}
+		err = compress(f, prefix, zw)
 		file.Close()
 		if err != nil {
 			return err
@@ -151,7 +159,6 @@ func (this *DownloadController) Get() {
 	imageId := this.Ctx.Input.Param(":imageId")
 	log.Info("query db ok.")
 	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
-
 	if err != nil {
 		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
@@ -164,17 +171,22 @@ func (this *DownloadController) Get() {
 	}
 	originalName := imageFileDb.FileName
 	downloadPath := filePath + imageFileDb.ImageId + imageFileDb.FileName
+	log.Info("originalName is" + originalName)
 	log.Info("download path is" + downloadPath)
 	if imageFileDb.SlimStatus == 2 {
 		downloadPath = filePath + "compressed" + imageFileDb.ImageId + imageFileDb.FileName
 	}
+	log.Info("originalName is" + originalName)
+	this.dealWithDownload(originalName, filePath, downloadPath)
+}
 
+func (this *DownloadController) dealWithDownload(originalName string, filePath string, downloadPath string) {
 	if this.Ctx.Input.Query("isZip") == "true" {
 		log.Info("begin to compress")
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
 		log.Info("filenameWithoutExt:" + filenameWithoutExt)
 		zipFilePath := filePath + filenameWithoutExt
-		log.Info("zipFilePath :" + zipFilePath )
+		log.Info("zipFilePath :" + zipFilePath)
 		err := createDirectory(zipFilePath)
 		if err != nil {
 			log.Error("when compress, failed to create file path")
@@ -182,7 +194,7 @@ func (this *DownloadController) Get() {
 		}
 		_, err = CopyFile(downloadPath, zipFilePath+"/"+originalName)
 		log.Info("downloadPath :" + downloadPath)
-		log.Info("copy file to " + zipFilePath+"/"+originalName)
+		log.Info("copy file to " + zipFilePath + "/" + originalName)
 		if err != nil {
 			log.Error("when compress, failed to copy file")
 			return
@@ -194,25 +206,33 @@ func (this *DownloadController) Get() {
 		}
 		var files = []*os.File{f1}
 		downloadName := strings.TrimSuffix(originalName, filepath.Ext(originalName)) + ".zip"
-		log.Info("filePath+downloadName: " + filePath+downloadName)
+		log.Info("filePath+downloadName: " + filePath + downloadName)
 		err = Compress(files, filePath+downloadName)
 		if err != nil {
 			log.Error("failed to compress upload file")
 			return
 		}
-		this.Ctx.Output.Download(downloadPath, downloadName)
-		err = os.Remove(filePath+downloadName)
-		if err != nil {
-			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
-		err = os.RemoveAll(zipFilePath)
-		if err != nil {
-			this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-			return
-		}
+		log.Info("downloadName: " + downloadName)
+		this.Ctx.Output.Download(filePath+downloadName, downloadName)
+		this.deleteCache(err, filePath, downloadName, zipFilePath)
 	} else {
-		this.Ctx.Output.Download(downloadPath,originalName)
+		log.Info("originalName is" + originalName)
+		this.Ctx.Output.Download(downloadPath, originalName)
+	}
+}
+
+func (this *DownloadController) deleteCache(err error, filePath string, downloadName string, zipFilePath string) bool {
+	err = os.RemoveAll(zipFilePath)
+	if err != nil {
+		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		return true
 	}
 
+	err = os.Remove(filePath + downloadName)
+	if err != nil {
+		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		return true
+	}
+
+	return false
 }
