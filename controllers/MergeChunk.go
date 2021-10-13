@@ -178,30 +178,9 @@ func (c *MergeChunkController) Post() {
 		filename = originalName
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	var formConfigMap map[string]string
-	formConfigMap = make(map[string]string)
-	formConfigMap["inputImageName"] = saveFileName
-
-	requestJson, _ := json.Marshal(formConfigMap)
-	requestBody := bytes.NewReader(requestJson)
-
-	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+	checkResponse, done := c.postToCheck(saveFileName, clientIp)
+	if done {
 		return
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-
-	var checkResponse CheckResponse
-	err = json.Unmarshal(body, &checkResponse)
-	if err != nil {
-		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 	}
 	status := checkResponse.Status
 	msg := checkResponse.Msg
@@ -240,6 +219,32 @@ func (c *MergeChunkController) Post() {
 
 }
 
+func (c *MergeChunkController) postToCheck(saveFileName string, clientIp string) (CheckResponse, bool) {
+	var formConfigMap map[string]string
+	formConfigMap = make(map[string]string)
+	formConfigMap["inputImageName"] = saveFileName
+	requestJson, _ := json.Marshal(formConfigMap)
+	requestBody := bytes.NewReader(requestJson)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+		return CheckResponse{}, true
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+
+	var checkResponse CheckResponse
+	err = json.Unmarshal(body, &checkResponse)
+	if err != nil {
+		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
+	}
+	return checkResponse, false
+}
+
 func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName string) {
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
@@ -272,7 +277,15 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 			continue
 		} else { //check completed
 			isCheckFinished = true
-			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
+			var imageFileDb models.ImageDB
+			log.Info("query db ok.")
+			_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+			if err != nil {
+				c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
+				return
+			}
+			slimStatus := imageFileDb.SlimStatus
+			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, slimStatus, checkStatusResponse)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
