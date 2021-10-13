@@ -272,7 +272,15 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 			continue
 		} else { //check completed
 			isCheckFinished = true
-			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, 0, checkStatusResponse)
+			var imageFileDb models.ImageDB
+			log.Info("query db ok.")
+			_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+			if err != nil {
+				c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
+				return
+			}
+			slimStatus := imageFileDb.SlimStatus
+			err = c.insertOrUpdateCheckRecord(imageId, filename, userId, storageMedium, saveFileName, slimStatus, checkStatusResponse)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
