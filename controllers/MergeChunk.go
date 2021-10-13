@@ -178,30 +178,9 @@ func (c *MergeChunkController) Post() {
 		filename = originalName
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	var formConfigMap map[string]string
-	formConfigMap = make(map[string]string)
-	formConfigMap["inputImageName"] = saveFileName
-
-	requestJson, _ := json.Marshal(formConfigMap)
-	requestBody := bytes.NewReader(requestJson)
-
-	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+	checkResponse, done := c.postToCheck(saveFileName, clientIp)
+	if done {
 		return
-	}
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-
-	var checkResponse CheckResponse
-	err = json.Unmarshal(body, &checkResponse)
-	if err != nil {
-		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
 	}
 	status := checkResponse.Status
 	msg := checkResponse.Msg
@@ -238,6 +217,32 @@ func (c *MergeChunkController) Post() {
 
 	go c.helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName)
 
+}
+
+func (c *MergeChunkController) postToCheck(saveFileName string, clientIp string) (CheckResponse, bool) {
+	var formConfigMap map[string]string
+	formConfigMap = make(map[string]string)
+	formConfigMap["inputImageName"] = saveFileName
+	requestJson, _ := json.Marshal(formConfigMap)
+	requestBody := bytes.NewReader(requestJson)
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "cannot send request to imagesOps")
+		return CheckResponse{}, true
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+
+	var checkResponse CheckResponse
+	err = json.Unmarshal(body, &checkResponse)
+	if err != nil {
+		c.writeErrorResponse(util.FailedToUnmarshal, util.BadRequest)
+	}
+	return checkResponse, false
 }
 
 func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName string) {
