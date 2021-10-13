@@ -144,8 +144,12 @@ func (this *ImageController) Delete() {
 	storageMedium := imageFileDb.StorageMedium
 
 	file := storageMedium + filename
-
 	err = os.Remove(file)
+
+	if imageFileDb.SlimStatus == 2 {
+		compressedFile := storageMedium + "compressed" + filename
+		err = os.Remove(compressedFile)
+	}
 
 	fileRecord := &models.ImageDB{
 		ImageId: imageId,

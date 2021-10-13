@@ -335,7 +335,15 @@ func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, o
 			continue
 		} else {
 			isCheckFinished = true
-			err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, 0, checkStatusResponse)
+			var imageFileDb models.ImageDB
+			log.Info("query db ok.")
+			_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+			if err != nil {
+				c.writeErrorResponse("fail to query database", util.StatusNotFound)
+				return
+			}
+			slimStatus := imageFileDb.SlimStatus
+			err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, slimStatus, checkStatusResponse)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
