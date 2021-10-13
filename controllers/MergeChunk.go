@@ -255,21 +255,8 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
 			return
 		}
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
-			return
-		}
-		defer responseCheck.Body.Close()
-		bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
-		var checkStatusResponse CheckStatusResponse
-		err = json.Unmarshal(bodyCheck, &checkStatusResponse)
-		if err != nil {
-			c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
+		checkStatusResponse, done := c.getToCheck(requestIdCheck, clientIp)
+		if done {
 			return
 		}
 		if checkStatusResponse.Status == 4 { // check in progress
@@ -279,7 +266,7 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 			isCheckFinished = true
 			var imageFileDb models.ImageDB
 			log.Info("query db ok.")
-			_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+			_, err := c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 			if err != nil {
 				c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 				return
@@ -293,4 +280,25 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 			}
 		}
 	}
+}
+
+func (c *MergeChunkController) getToCheck(requestIdCheck string, clientIp string) (CheckStatusResponse, bool) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
+		return CheckStatusResponse{}, true
+	}
+	defer responseCheck.Body.Close()
+	bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
+	var checkStatusResponse CheckStatusResponse
+	err = json.Unmarshal(bodyCheck, &checkStatusResponse)
+	if err != nil {
+		c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
+		return CheckStatusResponse{}, true
+	}
+	return checkStatusResponse, false
 }
