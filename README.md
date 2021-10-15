@@ -30,7 +30,7 @@
 
 ## 接口定义
 
-|              | Method | URL                                                   | form-data参数                                       | 相应结构                                                     | 接口实现说明                                                 |
+|  Name  | Method | URL                                                   | form-data参数                                       | 相应结构                                                     |    接口实现说明                                              |
 | ------------ | :----: | ----------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | 上传镜像文件 |  POST  | /image-management/v1/images                           | userId:用户ID<br/>file:文件<br/>priority:存储优先级 | {imageId:"string"<br/>file:"string"<br/>uploadTime:"string"<br/>userId:"string"<br/>storageMedium:"string"} | 上传镜像文件格式可选：.zip/.qcow2/.img/.iso, ；priority一般选0；上传zip时，镜像文件上层应包一层文件夹 |
 | 下载镜像文件 |  GET   | /image-management/v1/images/{imageId}/action/download | 无                                                  | file                                                         | 下载镜像文件格式可选，query为/?isZip=true时下载格式为.zip；不带query时下载镜像文件本身 |
