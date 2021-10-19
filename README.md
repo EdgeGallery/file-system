@@ -30,7 +30,7 @@
 
   调用同pod内另一容器的imageOps功能辅助完成镜像瘦身操作，具体流程图如下：
 
-![image-20211019163303625](C:\Users\Administrator\Desktop\image-20211019163303625.png)
+![镜像瘦身流程](https://images.gitee.com/uploads/images/2021/1019/202711_975fc379_8857185.png "image-20211019163303625.png")
 
 
 
