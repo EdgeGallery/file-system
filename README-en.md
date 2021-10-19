@@ -30,7 +30,7 @@
 
   Call the imageops function of another container in the same pod to assist in the image slimming operation. The specific flow chart is as follows:
 
-![image-20211019163303625](file://C:\Users\Administrator\Desktop\image-20211019163303625.png?lastModify=1634634782)
+![image slim process](https://images.gitee.com/uploads/images/2021/1019/203415_d4a6dc67_8857185.png "image-20211019163303625.png")
 
 ## API Definition
 
