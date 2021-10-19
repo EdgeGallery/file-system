@@ -4,7 +4,7 @@
 
 ## Overview
 
-   As a middleware, file system provides file management services for uploading, downloading, querying and deleting for multiple modules. The image file slimming function is added in v1.3
+   As a middleware, the file system provides file management services for uploading, downloading, querying, and deleting worked for multiple modules. The image file slimming function is added in v1.3
 
 
 
@@ -12,7 +12,7 @@
 
 - upload
 
-  The image file itself can be selected for uploading the file. If the image file is too large, it is recommended to compress it into a zip file for uploading, or it is recommended to upload it in pieces. When uploading zip, the. qcow2 file needs to be compressed in the folder.
+  The image file itself can be selected for uploading the file. If the image file is too large, it is recommended to compress it into a zip file for uploading, or it is recommended to upload it in pieces. When uploading zip, the .qcow2 file needs to be compressed in the folder.
 
 - download
 
@@ -20,7 +20,7 @@
 
 - query
 
- Query file details based on imageId
+  Query file details based on imageId
 
 - delete
 
@@ -32,7 +32,7 @@
 
 ![image-20211019163303625](file://C:\Users\Administrator\Desktop\image-20211019163303625.png?lastModify=1634634782)
 
-## API Defination
+## API Definition
 
 |                     | Method | URL                                                   | form-data                                                    | Response                                                     | API Instruction                                              |
 | ------------------- | :----: | ----------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
