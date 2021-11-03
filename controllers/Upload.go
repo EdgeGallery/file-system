@@ -302,6 +302,36 @@ func (c *UploadController) Post() {
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 }
 
+func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
+	clientIp := c.Ctx.Input.IP()
+	err := util.ValidateSrcAddress(clientIp)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		return "", nil, nil, nil, true
+	}
+	c.displayReceivedMsg(clientIp)
+
+	file, head, err := c.GetFile("file")
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
+		return "", nil, nil, nil, true
+	}
+
+	err = util.ValidateFileExtension(head.Filename)
+	if err != nil || len(head.Filename) > util.MaxFileNameSize {
+		c.HandleLoggingForError(clientIp, util.BadRequest,
+			"File shouldn't contains any extension or filename is larger than max size")
+		return "", nil, nil, nil, true
+	}
+
+	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
+		return "", nil, nil, nil, true
+	}
+	return clientIp, err, file, head, false
+}
+
 func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, originalName string, userId string, storageMedium string, saveFileName string) {
 	log.Warn("go routine is here")
 	//此时瘦身结束，查看Check Response详情
@@ -386,32 +416,4 @@ func (c *UploadController) postToCheck(saveFileName string, err error, clientIp 
 	return err, checkResponse, false
 }
 
-func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
-	clientIp := c.Ctx.Input.IP()
-	err := util.ValidateSrcAddress(clientIp)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
-		return "", nil, nil, nil, true
-	}
-	c.displayReceivedMsg(clientIp)
 
-	file, head, err := c.GetFile("file")
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, "Upload package file error")
-		return "", nil, nil, nil, true
-	}
-
-	err = util.ValidateFileExtension(head.Filename)
-	if err != nil || len(head.Filename) > util.MaxFileNameSize {
-		c.HandleLoggingForError(clientIp, util.BadRequest,
-			"File shouldn't contains any extension or filename is larger than max size")
-		return "", nil, nil, nil, true
-	}
-
-	err = util.ValidateFileSize(head.Size, util.MaxAppPackageFile)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, "File size is larger than max size")
-		return "", nil, nil, nil, true
-	}
-	return clientIp, err, file, head, false
-}

@@ -143,15 +143,28 @@ func (c *SlimController) Post() {
 		return
 	}
 	if imageFileDb.SlimStatus == 1 { //此时镜像正在瘦身 [0,1,2,3]  未瘦身/瘦身中/成功/失败
-		log.Info("the image file is being slimmed. No need to slim again.")
-		c.Ctx.WriteString("the image file is being slimmed. No need to slim again.")
+		log.Info(util.ImageSlimming)
+		c.Ctx.WriteString(util.ImageSlimming)
 		return
 	}
+
 	if imageFileDb.SlimStatus == 2 { //此时镜像已经瘦身
-		log.Info("the image file has already been slimmed. No need to slim again. Pls request to check directly")
-		c.Ctx.WriteString("the image file has already been slimmed. No need to slim again.Pls request to check directly")
+		log.Info(util.ImageSlimmed)
+		c.Ctx.WriteString(util.ImageSlimmed)
 		return
 	}
+
+	if imageFileDb.CheckStatus == 5 {  //镜像格式不支持瘦身
+		log.Info(util.TypeNotSupport)
+		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3,"") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		if err != nil {
+			log.Error(util.FailedToInsertDataToDB)
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+		}
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.TypeNotSupport)
+		return
+	}
+
 	filePath := imageFileDb.StorageMedium
 	saveFilename := imageFileDb.SaveFileName
 	if !c.PathCheck(filePath) {
@@ -232,6 +245,16 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 			}
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "imageOps compress failed")
+			return
+		} else if compressStatusResponse.Status == 3 { // compress exit, since no space left
+			log.Error(util.SlimExitNoSpace)
+			isCompressFinished = true
+			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			if err != nil {
+				log.Error(util.FailedToInsertDataToDB)
+				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+			}
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.SlimExitNoSpace)
 			return
 		}
 	}

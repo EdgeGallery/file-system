@@ -45,6 +45,10 @@ const (
 	FailToInsertRequestCheck string = "fail to insert request imageOps check to db"
 	OriginalNameIs                  = "originalName is"
 	FailToRecordToDB                = "Failed to save file record to database."
+	TypeNotSupport                  = "This image cannot be slimmed because the type of image is not supported."
+	ImageSlimming                   = "The image file is being slimmed. No need to slim again."
+	ImageSlimmed                    = "The image file has already been slimmed. No need to slim again. Pls request to check directly"
+	SlimExitNoSpace                 = "Compress exiting because of No enough space left"
 	Default                  string = "default"
 	MaxFileNameSize                 = 128
 	MaxAppPackageFile        int64  = 536870912000 //fix file size here
