@@ -25,16 +25,12 @@ import (
 	"github.com/go-playground/validator/v10"
 	"os"
 	"path/filepath"
-	"regexp"
 )
 
 const (
 	BadRequest                int = 400
-	StatusUnauthorized        int = 401
 	StatusInternalServerError int = 500
 	StatusNotFound            int = 404
-	StatusForbidden           int = 403
-
 	ClientIpaddressInvalid          = "clientIp address is invalid"
 	LastInsertIdNotSupported string = "LastInsertId is not supported by this driver"
 	FileRecord               string = "Add file record: %+v"
@@ -45,16 +41,15 @@ const (
 	FailToInsertRequestCheck string = "fail to insert request imageOps check to db"
 	OriginalNameIs                  = "originalName is"
 	FailToRecordToDB                = "Failed to save file record to database."
+	TypeNotSupport                  = "This image cannot be slimmed because the type of image is not supported."
+	ImageSlimming                   = "The image file is being slimmed. No need to slim again."
+	ImageSlimmed                    = "The image file has already been slimmed. No need to slim again. Pls request to check directly"
+	SlimExitNoSpace                 = "Compress exiting because of No enough space left"
 	Default                  string = "default"
 	MaxFileNameSize                 = 128
 	MaxAppPackageFile        int64  = 536870912000 //fix file size here
 	Operation                       = "] Operation ["
 	Resource                        = " Resource ["
-	SingleFile                      = 1
-	TooManyFile                     = 1024
-	FailedToMakeDir                 = "failed to make directory"
-	TooBig                          = 0x6400000
-	SingleFileTooBig                = 0x6400000
 	LocalStoragePath         string = "/usr/app/vmImage/"
 	FormFile                 string = "file"
 	UserId                   string = "userId"
@@ -64,13 +59,6 @@ const (
 	FileName                 string = "filename"
 	DriverName               string = "postgres"
 	SslMode                  string = "disable"
-	minPasswordSize                 = 8
-	maxPasswordSize                 = 16
-	maxPasswordCount                = 2
-	singleDigitRegex         string = `\d`
-	lowerCaseRegex           string = `[a-z]`
-	upperCaseRegex           string = `[A-Z]`
-	specialCharRegex         string = `['~!@#$%^&()-_=+\|[{}\];:'",<.>/?]`
 )
 
 // Validate file size
@@ -140,51 +128,4 @@ func ClearByteArray(data []byte) {
 	}
 }
 
-// Validate db parameters
-func ValidateDbParams(dbPwd string) (bool, error) {
-	dbPwdBytes := []byte(dbPwd)
-	dbPwdIsValid, validateDbPwdErr := ValidatePassword(&dbPwdBytes)
-	if validateDbPwdErr != nil || !dbPwdIsValid {
-		return dbPwdIsValid, validateDbPwdErr
-	}
-	return true, nil
-}
 
-// Validate password
-func ValidatePassword(password *[]byte) (bool, error) {
-	if len(*password) >= minPasswordSize && len(*password) <= maxPasswordSize {
-		// password must satisfy any two conditions
-		pwdValidCount := GetPasswordValidCount(password)
-		if pwdValidCount < maxPasswordCount {
-			return false, errors.New("password must contain at least two types of the either one lowercase" +
-				" character, one uppercase character, one digit or one special character")
-		}
-	} else {
-		return false, errors.New("password must have minimum length of 8 and maximum of 16")
-	}
-	return true, nil
-}
-
-// To get password valid count
-func GetPasswordValidCount(password *[]byte) int {
-	var pwdValidCount = 0
-	pwdIsValid, err := regexp.Match(singleDigitRegex, *password)
-	if pwdIsValid && err == nil {
-		pwdValidCount++
-	}
-	pwdIsValid, err = regexp.Match(lowerCaseRegex, *password)
-	if pwdIsValid && err == nil {
-		pwdValidCount++
-	}
-	pwdIsValid, err = regexp.Match(upperCaseRegex, *password)
-	if pwdIsValid && err == nil {
-		pwdValidCount++
-	}
-	// space validation for password complexity is not added
-	// as jwt decrypt fails if space is included in password
-	pwdIsValid, err = regexp.Match(specialCharRegex, *password)
-	if pwdIsValid && err == nil {
-		pwdValidCount++
-	}
-	return pwdValidCount
-}

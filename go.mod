@@ -24,4 +24,5 @@ require (
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	google.golang.org/appengine v1.6.7 // indirect
+	github.com/stretchr/testify v1.6.1
 )
