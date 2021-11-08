@@ -114,14 +114,8 @@ func (db *PgDb) InitDatabase() error {
 	dbHost := util.GetDbHost()
 	dbPort := util.GetDbPort()
 	dbSslMode := util.SslMode
-	//dbSslRootCert := DB_SSL_ROOT_CER
 
 	dbPwdStr := string(dbPwd)
-/*	util.ClearByteArray(dbPwd)
-	dbParamsAreValid, validateDbParamsErr := util.ValidateDbParams(dbPwdStr)
-	if validateDbParamsErr != nil || !dbParamsAreValid {
-		return errors.New("failed to validate db parameters")
-	}*/
 
 	// PostgreSQL configuration
 	registerDriverErr := orm.RegisterDriver(util.DriverName, orm.DRPostgres) // register driver
