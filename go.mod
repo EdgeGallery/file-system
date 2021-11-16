@@ -25,4 +25,5 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	google.golang.org/appengine v1.6.7 // indirect
 	github.com/stretchr/testify v1.6.1
+	github.com/agiledragon/gomonkey v2.0.1+incompatible
 )

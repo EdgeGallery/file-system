@@ -28,37 +28,55 @@ import (
 )
 
 const (
-	BadRequest                int = 400
-	StatusInternalServerError int = 500
-	StatusNotFound            int = 404
-	ClientIpaddressInvalid          = "clientIp address is invalid"
-	LastInsertIdNotSupported string = "LastInsertId is not supported by this driver"
-	FileRecord               string = "Add file record: %+v"
-	FailedToDecompress              = "Failed to decompress zip file"
-	FailedToDeleteCache             = "Failed to delete cache file"
-	FailedToUnmarshal               = "failed to unmarshal request"
-	FailedToInsertDataToDB   string = "fail to insert imageID, filename, userID to database"
-	FailToInsertRequestCheck string = "fail to insert request imageOps check to db"
-	OriginalNameIs                  = "originalName is"
-	FailToRecordToDB                = "Failed to save file record to database."
-	TypeNotSupport                  = "This image cannot be slimmed because the type of image is not supported."
-	ImageSlimming                   = "The image file is being slimmed. No need to slim again."
-	ImageSlimmed                    = "The image file has already been slimmed. No need to slim again. Pls request to check directly"
-	SlimExitNoSpace                 = "Compress exiting because of No enough space left"
-	Default                  string = "default"
-	MaxFileNameSize                 = 128
-	MaxAppPackageFile        int64  = 536870912000 //fix file size here
-	Operation                       = "] Operation ["
-	Resource                        = " Resource ["
-	LocalStoragePath         string = "/usr/app/vmImage/"
-	FormFile                 string = "file"
-	UserId                   string = "userId"
-	Priority                 string = "priority"
-	Part                     string = "part"
-	Identifier               string = "identifier"
-	FileName                 string = "filename"
-	DriverName               string = "postgres"
-	SslMode                  string = "disable"
+	BadRequest                int    = 400
+	StatusInternalServerError int    = 500
+	StatusNotFound            int    = 404
+	ClientIpaddressInvalid           = "clientIp address is invalid"
+	LastInsertIdNotSupported  string = "LastInsertId is not supported by this driver"
+	FileRecord                string = "Add file record: %+v"
+	FailedToDecompress               = "Failed to decompress zip file"
+	FailedToDeleteCache              = "Failed to delete cache file"
+	FailedToUnmarshal                = "failed to unmarshal request"
+	FailedToInsertDataToDB    string = "fail to insert imageID, filename, userID to database"
+	FailToInsertRequestCheck  string = "fail to insert request imageOps check to db"
+	OriginalNameIs                   = "originalName is"
+	FailToRecordToDB                 = "Failed to save file record to database."
+	TypeNotSupport                   = "This image cannot be slimmed because the type of image is not supported."
+	ImageSlimming                    = "The image file is being slimmed. No need to slim again."
+	ImageSlimmed                     = "The image file has already been slimmed. No need to slim again. Pls request to check directly"
+	SlimExitNoSpace                  = "Compress exiting because of No enough space left"
+	Default                   string = "default"
+	MaxFileNameSize                  = 128
+	MaxIPVal                         = 255
+	MaxAppPackageFile         int64  = 536870912000 //fix file size here
+	Operation                        = "] Operation ["
+	Resource                         = " Resource ["
+	LocalStoragePath          string = "/usr/app/vmImage/"
+	FormFile                  string = "file"
+	UserId                    string = "userId"
+	Priority                  string = "priority"
+	Part                      string = "part"
+	Identifier                string = "identifier"
+	FileName                  string = "filename"
+	DriverName                string = "postgres"
+	SslMode                   string = "disable"
+
+	DbImageId           string = "image_id"
+	DbFileName          string = "file_name"
+	DbUserId            string = "user_id"
+	DbSaveFileName      string = "save_file_name"
+	DbStorageMedium     string = "storage_medium"
+	DbUploadTime        string = "upload_time"
+	DbSlimStatus        string = "slim_status"
+	DbRequestIdCheck    string = "request_id_check"
+	DbRequestIdCompress string = "request_id_compress"
+	DbChecksum          string = "checksum"
+	DbCheckResult       string = "check_result"
+	DbCheckMsg          string = "check_msg"
+	DbCheckStatus       string = "check_status"
+	DbImageEndOffset    string = "image_end_offset"
+	DbCheckErrors       string = "check_errors"
+	DbFormat            string = "format"
 )
 
 // Validate file size
@@ -127,5 +145,3 @@ func ClearByteArray(data []byte) {
 		data[i] = 0
 	}
 }
-
-

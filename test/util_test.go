@@ -14,76 +14,77 @@
  * limitations under the License.
  */
 
-package util
+package test
 
 import (
+	"fileSystem/util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestValidateFileSizeSuccess(t *testing.T) {
-	err := ValidateFileSize(10, 100)
+	err := util.ValidateFileSize(10, 100)
 	assert.Nil(t, err, "TestValidateFileSizeSuccess execution result")
 }
 
 func TestValidateFileSizeInvalid(t *testing.T) {
-	err := ValidateFileSize(100, 10)
+	err := util.ValidateFileSize(100, 10)
 	assert.Error(t, err, "TestValidateFileSizeInvalid execution result")
 }
 
 func TestValidateSrcAddressNull(t *testing.T) {
-	err := ValidateSrcAddress("")
+	err := util.ValidateSrcAddress("")
 	assert.Error(t, err,"TestValidateSrcAddressNull execution result")
 }
 
 func TestValidateSrcAddressIPv4Success(t *testing.T) {
-	err := ValidateSrcAddress("127.0.0.1")
+	err := util.ValidateSrcAddress("127.0.0.1")
 	assert.Nil(t, err,"TestValidateSrcAddressIPv4Success execution result")
 }
 
 func TestValidateSrcAddressIPv6Success(t *testing.T) {
-	err := ValidateSrcAddress("1:1:1:1:1:1:1:1")
+	err := util.ValidateSrcAddress("1:1:1:1:1:1:1:1")
 	assert.Nil(t, err,"TestValidateSrcAddressIPv6Success execution result")
 }
 
 func TestValidateFileExtensionInvalid(t *testing.T) {
-	err := ValidateFileExtension("x.txt")
+	err := util.ValidateFileExtension("x.txt")
 	assert.Error(t, err, "TestValidateFileExtensionInvalid execution result")
 }
 
 func TestValidateFileExtensionSuccess(t *testing.T) {
-	err := ValidateFileExtension("x.qcow2")
+	err := util.ValidateFileExtension("x.qcow2")
 	assert.Nil(t, err, "TestValidateFileExtensionSuccess execution result")
 }
 
 func TestGetAppConfig(_ *testing.T) {
 	appConfig := "appConfig"
-	GetAppConfig(appConfig)
+	util.GetAppConfig(appConfig)
 }
 
 func TestGetDbUser(t *testing.T) {
-	err := GetDbUser()
+	err := util.GetDbUser()
 	assert.Equal(t, "", err, "TestGetDbUser execution result")
 }
 
 func TestGetDbName(t *testing.T) {
-	err := GetDbName()
+	err := util.GetDbName()
 	assert.Equal(t, "", err, "TestGetDbName execution result")
 }
 
 func TestGetDbHost(t *testing.T) {
-	err := GetDbHost()
+	err := util.GetDbHost()
 	assert.Equal(t, "", err, "TestGetDbHost execution result")
 }
 
 func TestGetDbPort(t *testing.T) {
-	err := GetDbPort()
+	err := util.GetDbPort()
 	assert.Equal(t, "", err, "TestGetDbPort execution result")
 }
 
 func TestClearByteArray(t *testing.T) {
 	data := []byte{1,2,3}
-    ClearByteArray(data)
+    util.ClearByteArray(data)
 }
 
 

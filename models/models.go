@@ -44,6 +44,7 @@ type ImageDB struct {
 	Format            string
 }
 
+//Init imageDB info record
 func init() {
 	orm.RegisterModel(new(ImageDB))
 }
