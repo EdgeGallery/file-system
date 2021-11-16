@@ -94,13 +94,6 @@ func (db *PgDb) QueryTable(tableName string, container interface{}, field string
 	return num, err
 }
 
-//return the download path
-func (db *PgDb) QueryForDownload(tableName string, container interface{}, imageId string) error {
-	qs := db.ormer.QueryTable(tableName)
-	return qs.Filter("image_id__exact", imageId).One(&container)
-
-}
-
 // Load Related
 func (db *PgDb) LoadRelated(md interface{}, name string) (int64, error) {
 	num, err := db.ormer.LoadRelated(md, name)
