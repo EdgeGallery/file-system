@@ -17,9 +17,11 @@
 package test
 
 import (
+	"errors"
 	"fileSystem/controllers"
 	"fileSystem/models"
 	"fileSystem/pkg/dbAdpater"
+	"fileSystem/util"
 	"github.com/agiledragon/gomonkey"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
@@ -30,15 +32,15 @@ import (
 	"testing"
 )
 
-const (
+var (
 	BaseUrl     string = "http://edgegallery:9500/image-management/v1"
 	ImageId     string = "94d6e70d-51f7-4b0d-965f-59dca2c3002c"
 	UserIdKey   string = "userId"
 	UserId      string = "71ea862b-5806-4196-bce3-434bf9c95b18"
 	PriorityKey string = "priority"
 	Priority    string = "0"
-
-	UploadBody string = "{\n\"userId\":" +
+	err                = errors.New("error")
+	UploadBody  string = "{\n\"userId\":" +
 		"\"e921ce54-82c8-4532-b5c6-8516cf75f7a771ea862b-5806-4196-bce3-434bf9c95b18\",\n\"tenantId\":" +
 		"\"e921ce54-82c8-4532-b5c6-8516cf75f7a7\",\n\"appInstanceId\":\"71ea862b-5806-4196-bce3-434bf9c95b18\",\n\"" +
 		"appName\":\"abcd\",\n\"appSupportMp1\": true,\n\"appTrafficRule\": [\n{\n\"trafficRuleId\":\"TrafficRule1\",\n\"" +
@@ -66,7 +68,7 @@ func TestControllerSuccess(t *testing.T) {
 	// Setting file path
 	// return filesystem/test的目录地址
 	path, _ := os.Getwd()
-	path += "/config"
+	path += "/mockImage.qcow2"
 
 	// Setting extra parameters
 	extraParams := map[string]string{
@@ -87,6 +89,7 @@ func TestControllerSuccess(t *testing.T) {
 	defer patch1.Reset()
 
 	testUploadGet(t, extraParams, "", testDb)
+	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
 }
 
 func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
@@ -119,6 +122,36 @@ func testUploadGet(t *testing.T, extraParams map[string]string, path string, tes
 	})
 }
 
+func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+
+	t.Run("testUploadPost", func(t *testing.T) {
+		//GET Request
+		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
+			extraParams, "file", path, "POST", []byte(""))
+
+		// Prepare Input
+		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
+		setParam(queryInput, false)
+
+		// Prepare beego controller
+		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
+			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+			Data: make(map[interface{}]interface{})}
+
+		// Create Upload controller with mocked DB and prepared Beego controller
+		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
+			Controller: queryBeegoController}}
+
+		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+			return err
+		})
+		defer patch1.Reset()
+
+		// Test query
+		queryController.Post()
+
+	})
+}
 
 func setParam(ctx *context.BeegoInput, isZip bool) {
 	if isZip {

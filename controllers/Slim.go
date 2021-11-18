@@ -142,21 +142,21 @@ func (c *SlimController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
 	}
-	if imageFileDb.SlimStatus == 1 { //此时镜像正在瘦身 [0,1,2,3]  未瘦身/瘦身中/成功/失败
+	if imageFileDb.SlimStatus == util.Slimming { //此时镜像正在瘦身 [0,1,2,3]  未瘦身/瘦身中/成功/失败
 		log.Info(util.ImageSlimming)
 		c.Ctx.WriteString(util.ImageSlimming)
 		return
 	}
 
-	if imageFileDb.SlimStatus == 2 { //此时镜像已经瘦身
+	if imageFileDb.SlimStatus == util.SlimmedSuccess { //此时镜像已经瘦身
 		log.Info(util.ImageSlimmed)
 		c.Ctx.WriteString(util.ImageSlimmed)
 		return
 	}
 
-	if imageFileDb.CheckStatus == 5 {  //镜像格式不支持瘦身
+	if imageFileDb.CheckStatus == util.CheckUnsupportedType {  //镜像格式不支持瘦身
 		log.Info(util.TypeNotSupport)
-		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3,"") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed,"") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
 			log.Error(util.FailedToInsertDataToDB)
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -196,9 +196,12 @@ func (c *SlimController) Post() {
 			log.Error(util.FailedToInsertDataToDB)
 			return
 		}
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "imageOps compress failed")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "Before asyCall imageOps, imageOps compress failed")
 		return
+	}else {
+		c.Ctx.WriteString("Compress response error, return code has ")
 	}
+	time.Sleep(time.Duration(5) * time.Second)
 	//异步调用
 	go c.asyCallImageOps(client, requestIdCompress, clientIp, imageFileDb, imageId)
 
@@ -244,7 +247,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 			}
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "imageOps compress failed")
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "After compress, imageOps compress failed")
 			return
 		} else if compressStatusResponse.Status == 3 { // compress exit, since no space left
 			log.Error(util.SlimExitNoSpace)
@@ -259,6 +262,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 		}
 	}
 
+	time.Sleep(time.Duration(5) * time.Second)
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
 	checkTimes = 180 //30 MinS
