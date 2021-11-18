@@ -296,10 +296,11 @@ func (c *UploadController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
 		return
 	}
-	log.Info("begin to go routine")
-
-	go c.cronGetCheck(requestIdCheck, imageId, originalName, userId, storageMedium, saveFileName)
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
+
+	log.Info("begin to go routine")
+	time.Sleep(time.Duration(5) * time.Second)
+	go c.cronGetCheck(requestIdCheck, imageId, originalName, userId, storageMedium, saveFileName)
 }
 
 func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
@@ -336,7 +337,7 @@ func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, o
 	log.Warn("go routine is here")
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
-	checkTimes := 60
+	checkTimes := 120
 	for !isCheckFinished && checkTimes > 0 {
 		checkTimes--
 		if len(requestIdCheck) == 0 {
@@ -347,7 +348,7 @@ func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, o
 		if done {
 			return
 		}
-		if checkStatusResponse.Status == 4 { // check in progress
+		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
 			time.Sleep(time.Duration(30) * time.Second)
 			continue
 		} else {

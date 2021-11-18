@@ -215,6 +215,7 @@ func (c *MergeChunkController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
+	time.Sleep(time.Duration(5) * time.Second)
 	go c.helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName)
 
 }
@@ -248,7 +249,7 @@ func (c *MergeChunkController) postToCheck(saveFileName string, clientIp string)
 func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filename, userId, storageMedium, saveFileName string) {
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
-	checkTimes := 60
+	checkTimes := 120
 	for !isCheckFinished && checkTimes > 0 {
 		checkTimes--
 		if len(requestIdCheck) == 0 {
@@ -259,7 +260,7 @@ func (c *MergeChunkController) helper(requestIdCheck, clientIp, imageId, filenam
 		if done {
 			return
 		}
-		if checkStatusResponse.Status == 4 { // check in progress
+		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
 			time.Sleep(time.Duration(30) * time.Second)
 			continue
 		} else { //check completed

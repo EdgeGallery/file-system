@@ -60,23 +60,38 @@ const (
 	FileName                  string = "filename"
 	DriverName                string = "postgres"
 	SslMode                   string = "disable"
-
-	DbImageId           string = "image_id"
-	DbFileName          string = "file_name"
-	DbUserId            string = "user_id"
-	DbSaveFileName      string = "save_file_name"
-	DbStorageMedium     string = "storage_medium"
-	DbUploadTime        string = "upload_time"
-	DbSlimStatus        string = "slim_status"
-	DbRequestIdCheck    string = "request_id_check"
-	DbRequestIdCompress string = "request_id_compress"
-	DbChecksum          string = "checksum"
-	DbCheckResult       string = "check_result"
-	DbCheckMsg          string = "check_msg"
-	DbCheckStatus       string = "check_status"
-	DbImageEndOffset    string = "image_end_offset"
-	DbCheckErrors       string = "check_errors"
-	DbFormat            string = "format"
+	CheckCompleted                   = 0
+	CheckCompletedCorrupted          = 1
+	CheckCompletedLeaked             = 2
+	CheckFailed                      = 3
+	CheckInProgress                  = 4
+	CheckUnsupportedType             = 5
+	CheckTimeOut                     = 6
+	CompressCompleted                = 0
+	CompressInProgress               = 1
+	CompressFailed                   = 2
+	CompressNoEnoughSpace            = 3
+	CompressTimeOut                  = 4
+	UnSlimmed                        = 0
+	Slimming                         = 1
+	SlimmedSuccess                   = 2
+	SlimFailed                       = 3
+	DbImageId                 string = "image_id"
+	DbFileName                string = "file_name"
+	DbUserId                  string = "user_id"
+	DbSaveFileName            string = "save_file_name"
+	DbStorageMedium           string = "storage_medium"
+	DbUploadTime              string = "upload_time"
+	DbSlimStatus              string = "slim_status"
+	DbRequestIdCheck          string = "request_id_check"
+	DbRequestIdCompress       string = "request_id_compress"
+	DbChecksum                string = "checksum"
+	DbCheckResult             string = "check_result"
+	DbCheckMsg                string = "check_msg"
+	DbCheckStatus             string = "check_status"
+	DbImageEndOffset          string = "image_end_offset"
+	DbCheckErrors             string = "check_errors"
+	DbFormat                  string = "format"
 )
 
 // Validate file size
