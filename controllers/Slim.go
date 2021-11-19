@@ -155,9 +155,9 @@ func (c *SlimController) Post() {
 		return
 	}
 
-	if imageFileDb.CheckStatus == util.CheckUnsupportedType { //镜像格式不支持瘦身
+	if imageFileDb.CheckStatus == util.CheckUnsupportedType {  //镜像格式不支持瘦身
 		log.Info(util.TypeNotSupport)
-		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, "") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed,"") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
 			log.Error(util.FailedToInsertDataToDB)
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -199,7 +199,7 @@ func (c *SlimController) Post() {
 		}
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "Before asyCall imageOps, imageOps compress failed")
 		return
-	} else {
+	}else {
 		c.Ctx.WriteString("Compress response error, return code has ")
 	}
 	time.Sleep(time.Duration(5) * time.Second)
