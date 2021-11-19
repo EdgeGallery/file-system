@@ -29,16 +29,19 @@ type ImageDB struct {
 	ImageId           string `orm:"pk"`
 	FileName          string
 	UserId            string
-	SaveFileName      string   //此字段为imageId+FileName，若slimStatus为2时，查找瘦身镜像在此前加“compressed”
+	SaveFileName      string //此字段为imageId+FileName，若slimStatus为2时，查找瘦身镜像在此前加“compressed”
 	StorageMedium     string
 	UploadTime        time.Time `orm:"auto_now_add;type(datetime)"`
 	SlimStatus        int       //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+/*	CompressStatus    int
+	CompressMsg       string
+	CompressRate      int*/
 	RequestIdCheck    string
 	RequestIdCompress string
+	CheckStatus       int
+	CheckMsg          string
 	Checksum          string
 	CheckResult       int
-	CheckMsg          string
-	CheckStatus       int
 	ImageEndOffset    string
 	CheckErrors       string
 	Format            string

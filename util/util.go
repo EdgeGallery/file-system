@@ -45,6 +45,8 @@ const (
 	ImageSlimming                    = "The image file is being slimmed. No need to slim again."
 	ImageSlimmed                     = "The image file has already been slimmed. No need to slim again. Pls request to check directly"
 	SlimExitNoSpace                  = "Compress exiting because of No enough space left"
+	CompressTimeOutMsg               = "Compress Time Out"
+	UnknownCompressStatus            = "Internal error, check compress status with unknown status"
 	Default                   string = "default"
 	MaxFileNameSize                  = 128
 	MaxIPVal                         = 255
