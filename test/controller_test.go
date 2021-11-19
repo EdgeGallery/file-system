@@ -89,7 +89,9 @@ func TestControllerSuccess(t *testing.T) {
 	defer patch1.Reset()
 
 	testUploadGet(t, extraParams, "", testDb)
+
 	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
+	testUploadPostValidateSrcAddress(t, extraParams, path, testDb)
 }
 
 func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
@@ -144,6 +146,37 @@ func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]st
 
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return err
+		})
+		defer patch1.Reset()
+
+		// Test query
+		queryController.Post()
+
+	})
+}
+
+func testUploadPostValidateSrcAddress(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+
+	t.Run("testUploadPost", func(t *testing.T) {
+		//GET Request
+		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
+			extraParams, "file", path, "POST", []byte(""))
+
+		// Prepare Input
+		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
+		setParam(queryInput, false)
+
+		// Prepare beego controller
+		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
+			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+			Data: make(map[interface{}]interface{})}
+
+		// Create Upload controller with mocked DB and prepared Beego controller
+		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
+			Controller: queryBeegoController}}
+
+		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+			return nil
 		})
 		defer patch1.Reset()
 

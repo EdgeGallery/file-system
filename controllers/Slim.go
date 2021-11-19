@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -218,12 +219,11 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 		if done {
 			return
 		}
-		if compressStatusResponse.Status == 1 { //compress in progress
+		if compressStatusResponse.Status == util.CompressInProgress { //compress in progress
 			time.Sleep(time.Duration(30) * time.Second)
 			continue
-		} else if compressStatusResponse.Status == 0 { //compress finished
-			//瘦身成功后，及时更新数据库
-			//err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCompress) // slimStatus == 2 瘦身成功
+		} else if compressStatusResponse.Status == util.CompressCompleted { //compress finished
+
 			isCompressFinished = true
 			checkResponse, done2 := c.postToCheck(client, imageFileDb, clientIp)
 			if done2 {
@@ -234,30 +234,50 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 				c.Ctx.WriteString("check requestId is empty, check if imageOps is ok")
 				return
 			}
-			err := c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCheck) // slimStatus == 1 瘦身中
+			err := c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.Slimming, requestIdCheck) // slimStatus == 1 瘦身中
 			if err != nil {
 				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
 				return
 			}
 			break
-		} else if compressStatusResponse.Status == 2 { //compress failed
+		} else if compressStatusResponse.Status == util.CompressFailed { //compress failed
 			isCompressFinished = true
-			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 			}
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "After compress, imageOps compress failed")
 			return
-		} else if compressStatusResponse.Status == 3 { // compress exit, since no space left
+		} else if compressStatusResponse.Status == util.CompressNoEnoughSpace { // compress exit, since no space left
 			log.Error(util.SlimExitNoSpace)
 			isCompressFinished = true
-			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 			}
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.SlimExitNoSpace)
+			return
+		} else if compressStatusResponse.Status == util.CompressTimeOut {
+			log.Error(util.CompressTimeOutMsg)
+			isCompressFinished = true
+			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			if err != nil {
+				log.Error(util.FailedToInsertDataToDB)
+				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+			}
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.CompressTimeOutMsg)
+			return
+		} else { // 增加逃生通道
+			log.Error(util.UnknownCompressStatus + ":" + strconv.Itoa(compressStatusResponse.Status))
+			isCompressFinished = true
+			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			if err != nil {
+				log.Error(util.FailedToInsertDataToDB)
+				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+			}
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.UnknownCompressStatus)
 			return
 		}
 	}
@@ -272,7 +292,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
 			return
 		}
-		 checkStatusResponse, done := c.getToCheck(client, requestIdCheck, clientIp)
+		checkStatusResponse, done := c.getToCheck(client, requestIdCheck, clientIp)
 		if done {
 			return
 		}
@@ -299,11 +319,11 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 	}
 }
 
-func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, clientIp string) ( CheckStatusResponse, bool) {
+func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, clientIp string) (CheckStatusResponse, bool) {
 	responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
-		return  CheckStatusResponse{}, true
+		return CheckStatusResponse{}, true
 	}
 	defer responseCheck.Body.Close()
 	bodyCheck, err := ioutil.ReadAll(responseCheck.Body)
@@ -311,12 +331,12 @@ func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, 
 	err = json.Unmarshal(bodyCheck, &checkStatusResponse)
 	if err != nil {
 		c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
-		return  CheckStatusResponse{}, true
+		return CheckStatusResponse{}, true
 	}
-	return  checkStatusResponse, false
+	return checkStatusResponse, false
 }
 
-func (c *SlimController) postToCheck(client *http.Client, imageFileDb models.ImageDB, clientIp string) ( CheckResponse, bool) {
+func (c *SlimController) postToCheck(client *http.Client, imageFileDb models.ImageDB, clientIp string) (CheckResponse, bool) {
 	saveFileName := imageFileDb.SaveFileName
 	var formConfigMap map[string]string
 	formConfigMap = make(map[string]string)
@@ -326,7 +346,7 @@ func (c *SlimController) postToCheck(client *http.Client, imageFileDb models.Ima
 	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "Slim POST cannot send request to imagesOps")
-		return  CheckResponse{}, true
+		return CheckResponse{}, true
 	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
