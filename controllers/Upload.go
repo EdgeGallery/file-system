@@ -180,12 +180,9 @@ func DeCompress(zipFile, dest string) ([]string, error) {
 func CopyFile(srcFileName string, dstFileName string) (written int64, err error) {
 	srcFile, err := os.Open(srcFileName)
 	if err != nil {
-		fmt.Printf("open file error = %v\n", err)
+		return 0, err
 	}
 	defer srcFile.Close()
-
-	//通过srcFile，获取到READER
-	reader := bufio.NewReader(srcFile)
 
 	//打开dstFileName
 	dstFile, err := os.OpenFile(dstFileName, os.O_WRONLY|os.O_CREATE, 0666)
@@ -194,13 +191,9 @@ func CopyFile(srcFileName string, dstFileName string) (written int64, err error)
 		return
 	}
 
-	//通过dstFile，获取到WRITER
-	writer := bufio.NewWriter(dstFile)
-	//writer.Flush()
-
 	defer dstFile.Close()
 
-	return io.Copy(writer, reader)
+	return io.Copy(dstFile, srcFile)
 }
 
 // @Title Get
