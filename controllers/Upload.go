@@ -21,7 +21,6 @@ package controllers
 
 import (
 	"archive/zip"
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
