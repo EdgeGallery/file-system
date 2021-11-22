@@ -196,7 +196,7 @@ func CopyFile(srcFileName string, dstFileName string) (written int64, err error)
 
 	//通过dstFile，获取到WRITER
 	writer := bufio.NewWriter(dstFile)
-	//writer.Flush()
+	writer.Flush()
 
 	defer dstFile.Close()
 
