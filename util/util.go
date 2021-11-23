@@ -39,7 +39,7 @@ const (
 	FailedToUnmarshal                = "failed to unmarshal request"
 	FailedToInsertDataToDB    string = "fail to insert imageID, filename, userID to database"
 	FailToInsertRequestCheck  string = "fail to insert request imageOps check to db"
-	OriginalNameIs                   = "originalName is"
+	OriginalNameIs                   = "originalName is "
 	FailToRecordToDB                 = "Failed to save file record to database."
 	TypeNotSupport                   = "This image cannot be slimmed because the type of image is not supported."
 	ImageSlimming                    = "The image file is being slimmed. No need to slim again."
@@ -62,6 +62,8 @@ const (
 	FileName                  string = "filename"
 	DriverName                string = "postgres"
 	SslMode                   string = "disable"
+
+	//ImageOps Check Status Code
 	CheckCompleted                   = 0
 	CheckCompletedCorrupted          = 1
 	CheckCompletedLeaked             = 2
@@ -69,15 +71,21 @@ const (
 	CheckInProgress                  = 4
 	CheckUnsupportedType             = 5
 	CheckTimeOut                     = 6
+	//ImageOps Compress POST Status Code
+	PostCompressInProgress           = 0
+	PostCompressFailed               = 1
+	//ImageOps Compress GET Status Code
 	CompressCompleted                = 0
 	CompressInProgress               = 1
 	CompressFailed                   = 2
 	CompressNoEnoughSpace            = 3
 	CompressTimeOut                  = 4
+	//FileSystem Slim Status Code
 	UnSlimmed                        = 0
 	Slimming                         = 1
 	SlimmedSuccess                   = 2
 	SlimFailed                       = 3
+
 	DbImageId                 string = "image_id"
 	DbFileName                string = "file_name"
 	DbUserId                  string = "user_id"

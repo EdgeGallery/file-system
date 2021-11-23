@@ -33,9 +33,11 @@ type ImageDB struct {
 	StorageMedium     string
 	UploadTime        time.Time `orm:"auto_now_add;type(datetime)"`
 	SlimStatus        int       //[0,1,2,3]  未瘦身/瘦身中/成功/失败
-/*	CompressStatus    int
+	//Compress status for developer
+	CompressStatus    int
 	CompressMsg       string
-	CompressRate      int*/
+	CompressRate      float32
+	//Check status for developer
 	RequestIdCheck    string
 	RequestIdCompress string
 	CheckStatus       int

@@ -32,6 +32,13 @@ type ImageController struct {
 	BaseController
 }
 
+// SlimInfo for developer
+type CompressInfo struct {
+	CompressStatus int     `json:"compressStatus"`
+	CompressMsg    string  `json:"compressMsg"`
+	CompressRate   float32 `json:"compressRate"`
+}
+
 // @Title Get
 // @Description perform local image query operation
 // @Param	imageId 	string
@@ -69,17 +76,27 @@ func (this *ImageController) Get() {
 	uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
 	userId := imageFileDb.UserId
 	storageMedium := imageFileDb.StorageMedium
+
 	slimStatus := imageFileDb.SlimStatus
+
+	compressRate := imageFileDb.CompressRate
+	compressMsg := imageFileDb.CompressMsg
+	compressStatus := imageFileDb.CompressStatus
 
 	var checkStatusResponse CheckStatusResponse
 	var checkInfo CheckInfo
 	var imageInfo ImageInfo
+	var compressInfo CompressInfo
 
-	if slimStatus == 2 {
+	if slimStatus == util.SlimmedSuccess {
 		imageInfo.Filename = "compressed" + imageFileDb.SaveFileName
 	} else {
 		imageInfo.Filename = imageFileDb.SaveFileName
 	}
+
+	compressInfo.CompressStatus = compressStatus
+	compressInfo.CompressMsg = compressMsg
+	compressInfo.CompressRate = compressRate
 
 	imageInfo.Format = imageFileDb.Format
 	imageInfo.CheckErrors = imageFileDb.CheckErrors
@@ -100,6 +117,7 @@ func (this *ImageController) Get() {
 		"userId":              userId,
 		"storageMedium":       storageMedium,
 		"slimStatus":          slimStatus,
+		"compressInfo":        compressInfo,
 		"checkStatusResponse": checkStatusResponse,
 	})
 
