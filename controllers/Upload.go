@@ -221,6 +221,8 @@ func (c *UploadController) Post() {
 	}
 	defer file.Close()
 	filename := head.Filename //original name for file   1.zip or 1.qcow2
+
+	//TODO: 校验userId、priority 加一个校验
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
 	imageId := CreateImageID()
@@ -280,7 +282,7 @@ func (c *UploadController) Post() {
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"slimStatus":    0, //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		"slimStatus":    util.UnSlimmed, //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		"checkStatus":   status,
 		"msg":           msg,
 	})

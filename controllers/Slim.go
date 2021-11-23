@@ -66,7 +66,7 @@ type CheckStatusResponse struct {
 type CompressStatusResponse struct {
 	Status int     `json:"status"`
 	Msg    string  `json:"msg"`
-	Rate   float64 `json:"rate"`
+	Rate   float32 `json:"rate"`
 }
 
 // @Title PathCheck
@@ -121,6 +121,28 @@ func (c *SlimController) insertOrUpdateCheckPostRecord(imageId, fileName, userId
 	return nil
 }
 
+func (c *SlimController) insertOrUpdateCompressGetRecord(imageId, fileName, userId, storageMedium, saveFileName string, compressStatusResponse CompressStatusResponse) error {
+	log.Info("begin to insert compress rate, status, msg to database.")
+	fileRecord := &models.ImageDB{
+		ImageId:       imageId,
+		FileName:      fileName,
+		UserId:        userId,
+		StorageMedium: storageMedium,
+		SaveFileName:  saveFileName,
+		//Compress进度参数
+		CompressStatus: compressStatusResponse.Status,
+		CompressMsg:    compressStatusResponse.Msg,
+		CompressRate:   compressStatusResponse.Rate,
+	}
+	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
+		log.Error(util.FailToRecordToDB)
+		return err
+	}
+	log.Info(util.FileRecord, fileRecord)
+	return nil
+}
+
 // @Title Post
 // @Description perform image slim operation
 // @Param	imageId 	string
@@ -155,9 +177,9 @@ func (c *SlimController) Post() {
 		return
 	}
 
-	if imageFileDb.CheckStatus == util.CheckUnsupportedType {  //镜像格式不支持瘦身
+	if imageFileDb.CheckStatus == util.CheckUnsupportedType { //镜像格式不支持瘦身
 		log.Info(util.TypeNotSupport)
-		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed,"") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, "") //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
 			log.Error(util.FailedToInsertDataToDB)
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -183,14 +205,14 @@ func (c *SlimController) Post() {
 	}
 	requestIdCompress := compressRes.RequestId
 	responseStatus := compressRes.Status //0:compress in progress  1: compress failed
-	if responseStatus == 0 {
+	if responseStatus == util.PostCompressInProgress {
 		c.Ctx.WriteString("compress in progress")
 		err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 1, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
 			log.Error(util.FailedToInsertDataToDB)
 			return
 		}
-	} else if responseStatus == 1 {
+	} else if responseStatus == util.PostCompressFailed {
 		c.Ctx.WriteString("compress failed")
 		err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 3, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 		if err != nil {
@@ -199,8 +221,11 @@ func (c *SlimController) Post() {
 		}
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "Before asyCall imageOps, imageOps compress failed")
 		return
-	}else {
-		c.Ctx.WriteString("Compress response error, return code has ")
+	} else { // 逃生通道
+		errMsg := "Compress response error, return code has not defined:" + strconv.Itoa(responseStatus)
+		c.Ctx.WriteString(errMsg)
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, errMsg)
+		return
 	}
 	time.Sleep(time.Duration(5) * time.Second)
 	//异步调用
@@ -215,34 +240,60 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 	checkTimes := 60
 	for !isCompressFinished && checkTimes > 0 {
 		checkTimes--
-		compressStatusResponse, done := c.getToCompress(client, requestIdCompress, clientIp)
-		if done {
+		compressStatusResponse, isFailed := c.getToCompress(client, requestIdCompress, clientIp)
+		if isFailed == true {
 			return
 		}
 		if compressStatusResponse.Status == util.CompressInProgress { //compress in progress
+
+			log.Info("imageOps is compressing, the imageId is " + imageId)
+			err := c.insertOrUpdateCompressGetRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, compressStatusResponse)
+			if err != nil {
+				log.Error("When imageOps compressing, Compress GET record cannot be inserted to database")
+				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
+				return
+			}
 			time.Sleep(time.Duration(30) * time.Second)
 			continue
 		} else if compressStatusResponse.Status == util.CompressCompleted { //compress finished
 
+			log.Info("imageOps compress finished, the imageId is " + imageId)
+			err := c.insertOrUpdateCompressGetRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, compressStatusResponse)
+			if err != nil {
+				log.Error("When imageOps compress finished, Compress GET record cannot be inserted to database")
+				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
+				return
+			}
+
 			isCompressFinished = true
-			checkResponse, done2 := c.postToCheck(client, imageFileDb, clientIp)
-			if done2 {
+			checkResponse, isFailed := c.postToCheck(client, imageFileDb, clientIp)
+			if isFailed == true {
 				return
 			}
 			requestIdCheck = checkResponse.RequestId
 			if len(requestIdCheck) == 0 {
+				log.Error("check requestId is empty, check if imageOps is ok")
 				c.Ctx.WriteString("check requestId is empty, check if imageOps is ok")
 				return
 			}
-			err := c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.Slimming, requestIdCheck) // slimStatus == 1 瘦身中
+			err = c.insertOrUpdateCheckPostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.Slimming, requestIdCheck) // slimStatus == 1 瘦身中
 			if err != nil {
 				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
 				return
 			}
 			break
 		} else if compressStatusResponse.Status == util.CompressFailed { //compress failed
+
+			log.Error("imageOps compress failed, the imageId is " + imageId)
+			err := c.insertOrUpdateCompressGetRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, compressStatusResponse)
+			if err != nil {
+				log.Error("When imageOps compress failed, Compress GET record cannot be inserted to database")
+				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
+				return
+			}
+
 			isCompressFinished = true
-			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -250,19 +301,35 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "After compress, imageOps compress failed")
 			return
 		} else if compressStatusResponse.Status == util.CompressNoEnoughSpace { // compress exit, since no space left
+
+			err := c.insertOrUpdateCompressGetRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, compressStatusResponse)
+			if err != nil {
+				log.Error("When imageOps  compress exit since no space left, Compress GET record cannot be inserted to database")
+				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
+				return
+			}
+
 			log.Error(util.SlimExitNoSpace)
 			isCompressFinished = true
-			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
 			}
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.SlimExitNoSpace)
 			return
-		} else if compressStatusResponse.Status == util.CompressTimeOut {
+		} else if compressStatusResponse.Status == util.CompressTimeOut { // compress exit, since time out
+
+			err := c.insertOrUpdateCompressGetRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, compressStatusResponse)
+			if err != nil {
+				log.Error("When imageOps  compress exit since time out, Compress GET record cannot be inserted to database")
+				c.writeErrorResponse(util.FailToRecordToDB, util.BadRequest)
+				return
+			}
+
 			log.Error(util.CompressTimeOutMsg)
 			isCompressFinished = true
-			err := c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+			err = c.insertOrUpdatePostRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, requestIdCompress) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -286,20 +353,23 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
 	checkTimes = 180 //30 MinS
+
 	for !isCheckFinished && checkTimes > 0 {
+
 		checkTimes--
 		if len(requestIdCheck) == 0 {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is till empty")
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is still empty")
 			return
 		}
-		checkStatusResponse, done := c.getToCheck(client, requestIdCheck, clientIp)
-		if done {
+
+		checkStatusResponse, undone := c.getToCheck(client, requestIdCheck, clientIp)
+		if undone {
 			return
 		}
-		if checkStatusResponse.Status == 4 { // check in progress
+		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
 			time.Sleep(time.Duration(10) * time.Second)
 			continue
-		} else if checkStatusResponse.Status == 0 { //check completed
+		} else if checkStatusResponse.Status == util.CheckCompleted { //check completed
 			isCheckFinished = true
 			err := c.insertOrUpdateCheckRecord(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, 2, checkStatusResponse)
 			if err != nil {

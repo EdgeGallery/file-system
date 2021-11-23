@@ -97,6 +97,7 @@ func (c *MergeChunkController) Post() {
 	}
 	c.displayReceivedMsg(clientIp)
 
+	//TODO: 校验userId、priority 加一个校验
 	userId := c.GetString(util.UserId)
 	identifier := c.GetString(util.Identifier)
 	filename := c.GetString(util.FileName)
@@ -198,14 +199,13 @@ func (c *MergeChunkController) Post() {
 		return
 	}
 
-	slimStatus := "0" //默认未瘦身
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
 		"userId":        userId,
 		"storageMedium": storageMedium,
-		"slimStatus":    slimStatus,
+		"slimStatus":    util.UnSlimmed,
 		"checkStatus":   status,
 		"msg":           msg,
 	})
