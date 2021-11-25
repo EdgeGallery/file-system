@@ -290,13 +290,14 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 
 	//此时正在瘦身
 	var requestIdCheck string
-	var compressStatusResponse CompressStatusResponse
+	var compressInfo CompressStatusResponse
 
 	isCompressFinished := false
 	checkTimes := 60
 	for !isCompressFinished && checkTimes > 0 {
 		checkTimes--
 		compressStatusResponse, isFailed := c.getToCompress(client, requestIdCompress, clientIp)
+		compressInfo = compressStatusResponse
 		if isFailed == true {
 			return
 		}
@@ -416,7 +417,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 		} else if checkStatusResponse.Status == util.CheckCompleted { //check completed
 			isCheckFinished = true
 
-			err := c.insertOrUpdateCheckRecordAfterCompress(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimmedSuccess, checkStatusResponse, compressStatusResponse)
+			err := c.insertOrUpdateCheckRecordAfterCompress(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimmedSuccess, checkStatusResponse, compressInfo)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
@@ -424,7 +425,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 			}
 		} else {
 			isCheckFinished = true
-			err := c.insertOrUpdateCheckRecordAfterCompress(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, checkStatusResponse, compressStatusResponse)
+			err := c.insertOrUpdateCheckRecordAfterCompress(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.SlimFailed, checkStatusResponse, compressInfo)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
 				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
