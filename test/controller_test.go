@@ -316,7 +316,7 @@ func TestUploadPostToCheck(t *testing.T) {
 	defer patch1.Reset()
 
 	c := getUploadController()
-	_, checkResponse, _ := c.PostToCheck("SaveFileName", nil, "127.0.0.1")
+	checkResponse,_ := c.PostToCheck("SaveFileName")
 	assert.Equal(t, 0, checkResponse.Status, "Post to Check is ok")
 
 }
