@@ -17,6 +17,8 @@
 package test
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fileSystem/controllers"
 	"fileSystem/models"
@@ -25,36 +27,30 @@ import (
 	"github.com/agiledragon/gomonkey"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 var (
-	BaseUrl     string = "http://edgegallery:9500/image-management/v1"
-	ImageId     string = "94d6e70d-51f7-4b0d-965f-59dca2c3002c"
-	UserIdKey   string = "userId"
-	UserId      string = "71ea862b-5806-4196-bce3-434bf9c95b18"
-	PriorityKey string = "priority"
-	Priority    string = "0"
-	err                = errors.New("error")
-	UploadBody  string = "{\n\"userId\":" +
-		"\"e921ce54-82c8-4532-b5c6-8516cf75f7a771ea862b-5806-4196-bce3-434bf9c95b18\",\n\"tenantId\":" +
-		"\"e921ce54-82c8-4532-b5c6-8516cf75f7a7\",\n\"appInstanceId\":\"71ea862b-5806-4196-bce3-434bf9c95b18\",\n\"" +
-		"appName\":\"abcd\",\n\"appSupportMp1\": true,\n\"appTrafficRule\": [\n{\n\"trafficRuleId\":\"TrafficRule1\",\n\"" +
-		"filterType\":\"FLOW\",\n\"priority\": 1,\n\"action\":\"DROP\",\n\"trafficFilter\":[\n{\n\"trafficFilterId\":" +
-		"\"75256a74-adb9-4c6d-8246-9773dfd5f6df\",\n\"srcAddress\":[\n\"192.168.1.1/28\",\n\"192.168.1.2/28\"\n],\n\"" +
-		"srcPort\":[\n\"6666666666\"\n],\n\"dstAddress\":[\n\"192.168.1.1/28\"\n],\n\"dstPort\":[\n\"6666666666\"\n],\n\"" +
-		"protocol\":[\n\"TCP\"\n],\n\"qCI\": 1,\n\"dSCP\":0,\n\"tC\": 1,\n\"tag\":[\n\"1\"\n],\n\"srcTunnelAddress\":" +
-		"[\n\"1.1.1.1/24\"\n],\n\"dstTunnelAddress\":[\n\"1.1.1.1/24\"\n],\n\"srcTunnelPort\":[\n\"65536\"\n],\n\"" +
-		"dstTunnelPort\":[\n\"65537\"\n]\n}\n],\n\"dstInterface\":[\n{\n\"dstInterfaceId\":" +
-		"\"caf2dab7-0c20-4fe7-ac72-a7e204a309d2\",\n\"interfaceType\":\"\",\n\"srcMacAddress\":\"\",\n\"dstMacAddress\":" +
-		"\"\",\n\"dstIpAddress\":\"\",\n\"TunnelInfo\":{\n\"tunnelInfoId\":\"461ceb53-291c-422c-9cbe-27f40e4ad2b3\",\n\"" +
-		"tunnelType\":\"\",\n\"tunnelDstAddress\":\"\",\n\"tunnelSrcAddress\":\"\",\n\"tunnelSpecificData\":" +
-		"\"\"\n}\n}\n]\n}\n],\n\"appDnsRule\":[\n{\n\"dnsRuleId\":\"dnsRule4\",\n\"domainName\":\"www.example.com\",\n\"" +
-		"ipAddressType\":\"IP_V4\",\n\"ipAddress\":\"192.0.2.0\",\n\"ttl\":30\n}\n],\n\"Origin\":\"MEPM\"\n}"
+	BaseUrl       string = "http://edgegallery:9500/image-management/v1"
+	imageId       string = "94d6e70d-51f7-4b0d-965f-59dca2c3002c"
+	UserIdKey     string = "userId"
+	UserId        string = "71ea862b-5806-4196-bce3-434bf9c95b18"
+	requestId     string = "71ea862b-5806-4196-bce3-434bf9c95b18"
+	PriorityKey   string = "priority"
+	Priority      string = "0"
+	originalName         = "cirros.qcow2"
+	storageMedium        = "/usr/app/vmImage/"
+	saveFileName         = "71ea862b-5806-4196-bce3-434bf9c95b18cirros.qcow2"
+	err                  = errors.New("error")
 
 	Post   = "POST"
 	Put    = "PUT"
@@ -93,7 +89,7 @@ func TestControllerSuccess(t *testing.T) {
 	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
 	testUploadPostValidateSrcAddress(t, extraParams, path, testDb)
 
-	//testUploadPostImageOpsPostOk(t, extraParams, path, testDb)
+	testUploadPostImageOpsPostGetOk(t, extraParams, path, testDb)
 }
 
 func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
@@ -188,9 +184,10 @@ func testUploadPostValidateSrcAddress(t *testing.T, extraParams map[string]strin
 	})
 }
 
-/*func testUploadPostImageOpsPostOk(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testUploadPostImageOpsPostGetOk(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 
 	t.Run("testUploadPost", func(t *testing.T) {
+
 		//GET Request
 		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
 			extraParams, "file", path, "POST", []byte(""))
@@ -213,18 +210,142 @@ func testUploadPostValidateSrcAddress(t *testing.T, extraParams map[string]strin
 		})
 		defer patch1.Reset()
 
+		var responsePostBodyMap map[string]interface{}
+		responsePostBodyMap = make(map[string]interface{})
+		responsePostBodyMap["status"] = 0
+		responsePostBodyMap["msg"] = "Check In Progress"
+		responsePostBodyMap["requestId"] = requestId
+		responsePostJson, _ := json.Marshal(responsePostBodyMap)
+		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
 
-		patch2 := gomonkey.ApplyMethod()
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client, url, contentType string, body io.Reader) (resp *http.Response, err error) {
+			return &http.Response{Body: responsePostBody}, nil
+		})
+		defer patch2.Reset()
 
 		// Test query
 		queryController.Post()
-
 	})
-}*/
+}
+
+func TestUploadGetCheckInProgress(t *testing.T) {
+	var responseBodyMapOfGet map[string]interface{}
+	var imageInfo controllers.ImageInfo
+	var checkInfo controllers.CheckInfo
+	responseBodyMapOfGet = make(map[string]interface{})
+	responseBodyMapOfGet["status"] = 0
+	responseBodyMapOfGet["msg"] = "Check completed, the image is (now) consistent"
+	imageInfo.ImageEndOffset = "564330496"
+	imageInfo.CheckErrors = "0"
+	imageInfo.Format = "qcow2"
+	imageInfo.Filename = "ubuntu-18.04.qcow2"
+	checkInfo.ImageInformation = imageInfo
+	checkInfo.CheckResult = 0
+	checkInfo.Checksum = "782fa5257615748e673eefe0143188e4"
+	responseBodyMapOfGet["checkInfo"] = checkInfo
+
+	responseGetJson, _ := json.Marshal(responseBodyMapOfGet)
+	responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
+
+	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		return &http.Response{Body: responseGetBody}, nil
+	})
+	defer patch1.Reset()
+
+	c := getUploadController()
+	c.GetToCheck(requestId)
+}
+
+func TestCronGetCheck(t *testing.T) {
+	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+		Data: make(map[interface{}]interface{})}
+	testDb := &MockDb{
+		imageRecords: make(map[string]models.ImageDB),
+	}
+	uploadController := &controllers.UploadController{controllers.BaseController{Db: testDb,
+		Controller: getBeegoController}}
+	var responseGetBodyMap map[string]interface{}
+	responseGetBodyMap = make(map[string]interface{})
+
+	var imageInfo controllers.ImageInfo
+	var checkInfo controllers.CheckInfo
+	var checkStatusResponse controllers.CheckStatusResponse
+
+	checkStatusResponse.Status = 6
+	checkStatusResponse.Msg = "Check Time Out"
+
+	responseGetBodyMap["status"] = 6
+	responseGetBodyMap["msg"] = "Check Time Out"
+
+	imageInfo.ImageEndOffset = "564330496"
+	imageInfo.CheckErrors = "0"
+	imageInfo.Format = "qcow2"
+	imageInfo.Filename = "ubuntu-18.04.qcow2"
+	checkInfo.ImageInformation = imageInfo
+	checkInfo.CheckResult = 0
+	checkInfo.Checksum = "782fa5257615748e673eefe0143188e4"
+	checkStatusResponse.CheckInformation = checkInfo
+	responseGetBodyMap["checkInfo"] = checkInfo
+
+	responseGetJson, _ := json.Marshal(responseGetBodyMap)
+	responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
+
+	patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		return &http.Response{Body: responseGetBody}, nil
+	})
+	defer patch3.Reset()
+
+	uploadController.CronGetCheck(requestId, imageId, "name", UserId, "/usr/app/vmImage/", "saveFileName")
+
+}
+
+func TestUploadPostToCheck(t *testing.T) {
+
+	var responsePostBodyMap map[string]interface{}
+	responsePostBodyMap = make(map[string]interface{})
+	responsePostBodyMap["status"] = 0
+	responsePostBodyMap["msg"] = "Check In Progress"
+	responsePostBodyMap["requestId"] = requestId
+	responsePostJson, _ := json.Marshal(responsePostBodyMap)
+	responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
+
+	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client, url, contentType string, body io.Reader) (resp *http.Response, err error) {
+		return &http.Response{Body: responsePostBody}, nil
+	})
+
+	defer patch1.Reset()
+
+	c := getUploadController()
+	_, checkResponse, _ := c.PostToCheck("SaveFileName", nil, "127.0.0.1")
+	assert.Equal(t, 0, checkResponse.Status, "Post to Check is ok")
+
+}
+
+func getUploadController() *controllers.UploadController {
+	c := &controllers.UploadController{}
+	c.Init(context.NewContext(), "", "", nil)
+	req, err := http.NewRequest("POST", "http://127.0.0.1", strings.NewReader(""))
+	if err != nil {
+		log.Error("Prepare http request failed")
+	}
+	c.Ctx.Request = req
+	c.Ctx.Request.Header.Set("X-Real-Ip", "127.0.0.1")
+	c.Ctx.ResponseWriter = &context.Response{}
+	c.Ctx.ResponseWriter.ResponseWriter = httptest.NewRecorder()
+	c.Ctx.Output = context.NewOutput()
+	c.Ctx.Input = context.NewInput()
+	c.Ctx.Output.Reset(c.Ctx)
+	c.Ctx.Input.Reset(c.Ctx)
+	c.Ctx.Input.SetParam(UserIdKey, UserId)
+	c.Ctx.Input.SetParam(PriorityKey, Priority)
+	path, _ := os.Getwd()
+	c.Ctx.Input.SetParam("file", path+"/mockImage.qcow2")
+	return c
+}
 
 func setParam(ctx *context.BeegoInput, isZip bool) {
 	if isZip {
 		ctx.SetParam("isZip", "true")
 	}
-	ctx.SetParam(":imageId", ImageId)
+	ctx.SetParam(":imageId", imageId)
 }

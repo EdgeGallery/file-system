@@ -67,7 +67,7 @@ func CreateImageID() string {
 	return uuId.String()
 }
 
-func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, requestIdCheck string) error {
+func (c *UploadController) InsertOrUpdateFileRecord(imageId, fileName, userId, saveFileName, storageMedium, requestIdCheck string) error {
 
 	fileRecord := &models.ImageDB{
 		ImageId:        imageId,
@@ -90,7 +90,7 @@ func (c *UploadController) insertOrUpdateFileRecord(imageId, fileName, userId, s
 }
 
 //add more storage logic here
-func (c *UploadController) getStorageMedium(priority string) string {
+func (c *UploadController) GetStorageMedium(priority string) string {
 	switch {
 	case priority == "A":
 		return "huaweiCloud"
@@ -108,7 +108,7 @@ func (c *UploadController) getStorageMedium(priority string) string {
 // @Description upload file
 // @Param   priority     string  true   "priority "
 // @Param   saveFilename 	string  	true   "file"   eg.9c73996089944709bad8efa7f532aebe1.zip
-func (c *UploadController) saveByPriority(priority string, saveFilename string) error {
+func (c *UploadController) SaveByPriority(priority string, saveFilename string) error {
 	switch {
 	case priority == "A":
 		return errors.New("sorry, this storage medium is not supported right now")
@@ -215,7 +215,7 @@ func (c *UploadController) Get() {
 // @router "/image-management/v1/images [post]
 func (c *UploadController) Post() {
 	log.Info("Upload post request received.")
-	clientIp, err, file, head, isDone := c.foreCheck()
+	clientIp, err, file, head, isDone := c.ForeCheck()
 	if isDone {
 		return
 	}
@@ -226,9 +226,9 @@ func (c *UploadController) Post() {
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
 	imageId := CreateImageID()
-	storageMedium := c.getStorageMedium(priority)
+	storageMedium := c.GetStorageMedium(priority)
 	saveFileName := imageId + filename //9c73996089944709bad8efa7f532aebe+   1.zip or  1.qcow2
-	err = c.saveByPriority(priority, saveFileName)
+	err = c.SaveByPriority(priority, saveFileName)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to upload package")
 		return
@@ -264,14 +264,14 @@ func (c *UploadController) Post() {
 		}
 	}
 
-	err, checkResponse, done := c.postToCheck(saveFileName, err, clientIp)
+	err, checkResponse, done := c.PostToCheck(saveFileName, err, clientIp)
 	if done {
 		return
 	}
 	status := checkResponse.Status
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
-	err = c.insertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
+	err = c.InsertOrUpdateFileRecord(imageId, originalName, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
 		log.Error(util.FailedToInsertDataToDB)
 		return
@@ -294,10 +294,12 @@ func (c *UploadController) Post() {
 
 	log.Info("begin to go routine")
 	time.Sleep(time.Duration(5) * time.Second)
-	go c.cronGetCheck(requestIdCheck, imageId, originalName, userId, storageMedium, saveFileName)
+	go c.CronGetCheck(requestIdCheck, imageId, originalName, userId, storageMedium, saveFileName)
+	log.Info("go routine finish")
 }
 
-func (c *UploadController) foreCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
+
+func (c *UploadController) ForeCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
 	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
@@ -327,7 +329,7 @@ func (c *UploadController) foreCheck() (string, error, multipart.File, *multipar
 	return clientIp, err, file, head, false
 }
 
-func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, originalName string, userId string, storageMedium string, saveFileName string) {
+func (c *UploadController) CronGetCheck(requestIdCheck string, imageId string, originalName string, userId string, storageMedium string, saveFileName string) {
 	log.Warn("go routine is here")
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
@@ -338,7 +340,7 @@ func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, o
 			c.writeErrorResponse("after POST check to imageOps, check requestId is till empty", util.StatusInternalServerError)
 			return
 		}
-		checkStatusResponse, done := c.getToCheck(requestIdCheck)
+		checkStatusResponse, done := c.GetToCheck(requestIdCheck)
 		if done {
 			return
 		}
@@ -365,7 +367,7 @@ func (c *UploadController) cronGetCheck(requestIdCheck string, imageId string, o
 	}
 }
 
-func (c *UploadController) getToCheck(requestIdCheck string) ( CheckStatusResponse, bool) {
+func (c *UploadController) GetToCheck(requestIdCheck string) ( CheckStatusResponse, bool) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -386,7 +388,7 @@ func (c *UploadController) getToCheck(requestIdCheck string) ( CheckStatusRespon
 	return  checkStatusResponse, false
 }
 
-func (c *UploadController) postToCheck(saveFileName string, err error, clientIp string) (error, CheckResponse, bool) {
+func (c *UploadController) PostToCheck(saveFileName string, err error, clientIp string) (error, CheckResponse, bool) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
