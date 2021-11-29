@@ -242,13 +242,9 @@ func (c *UploadController) Get() {
 		var imageInfo ImageInfo
 		var compressInfo CompressInfo
 
-		compressRate := imageFileDb.CompressRate
-		compressMsg := imageFileDb.CompressMsg
-		compressStatus := imageFileDb.CompressStatus
-
-		compressInfo.CompressStatus = compressStatus
-		compressInfo.CompressMsg = compressMsg
-		compressInfo.CompressRate = compressRate
+		compressInfo.CompressStatus = imageFileDb.CompressStatus
+		compressInfo.CompressMsg = imageFileDb.CompressMsg
+		compressInfo.CompressRate = imageFileDb.CompressRate
 
 		imageInfo.Format = imageFileDb.Format
 		imageInfo.CheckErrors = imageFileDb.CheckErrors
