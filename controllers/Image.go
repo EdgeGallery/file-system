@@ -45,30 +45,37 @@ type CompressInfo struct {
 // @Success 200 ok
 // @Failure 400 bad request
 // @router /image-management/v1/images/:imageId [GET]
-func (this *ImageController) Get() {
+func (c *ImageController) Get() {
 	log.Info("Query for local image get request received.")
 
-	clientIp := this.Ctx.Input.IP()
+	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
 		return
 	}
 
-	this.displayReceivedMsg(clientIp)
+	c.displayReceivedMsg(clientIp)
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Param(":imageId")
-	if imageId == "" {
-		this.HandleLoggingForError(clientIp, util.StatusNotFound, "imageId is not right")
+	imageId := c.Ctx.Input.Param(":imageId")
+
+	if imageId == "" || len(imageId) == 0 {
+		c.writeErrorResponse("fail to query database since the imageId is empty", util.StatusNotFound)
 		return
 	}
 
-	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+	log.Info("begin to query database with imageId:" + imageId)
+	num, err := c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
+		c.writeErrorResponse("query database with some err, the imageId is "+imageId, util.StatusNotFound)
+		return
+	}
+
+	if num == 0 {
+		c.writeErrorResponse("there is no record in database with imageId: "+imageId, util.StatusNotFound)
 		return
 	}
 
@@ -122,11 +129,11 @@ func (this *ImageController) Get() {
 	})
 
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
 		return
 	}
 
-	_, _ = this.Ctx.ResponseWriter.Write(uploadResp)
+	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
 }
 
@@ -136,25 +143,25 @@ func (this *ImageController) Get() {
 // @Success 200 ok
 // @Failure 400 bad request
 // @router /image-management/v1/images/:imageId [DELETE]
-func (this *ImageController) Delete() {
+func (c *ImageController) Delete() {
 	log.Info("Delete local image package request received.")
-	clientIp := this.Ctx.Input.IP()
+	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
 		return
 	}
 
-	this.displayReceivedMsg(clientIp)
+	c.displayReceivedMsg(clientIp)
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Param(":imageId")
+	imageId := c.Ctx.Input.Param(":imageId")
 
-	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+	_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
 		return
 	}
 
@@ -173,17 +180,17 @@ func (this *ImageController) Delete() {
 		ImageId: imageId,
 	}
 
-	err = this.Db.DeleteData(fileRecord, "image_id")
+	err = c.Db.DeleteData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, err.Error())
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
 		return
 	} else {
-		this.Ctx.WriteString("delete success")
+		c.Ctx.WriteString("delete success")
 		log.Info("delete file from " + storageMedium)
 	}
 
