@@ -96,6 +96,7 @@ func (c *BaseController) handleLoggingForSuccess(clientIp string, msg string) {
 		util.Resource + c.Ctx.Input.URL() + "] Result [Success: " + msg + ".]")
 }
 
+// Asynchronous call to imageOps to get check status
 func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, originalName string, userId string, storageMedium string, saveFileName string) {
 	log.Warn("go routine is here")
 	//此时瘦身结束，查看Check Response详情
@@ -139,6 +140,7 @@ func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, ori
 	}
 }
 
+// get check status to imageOps
 func (c *BaseController) GetToCheck(requestIdCheck string) (CheckStatusResponse, error) {
 
 	tr := &http.Transport{
@@ -163,6 +165,7 @@ func (c *BaseController) GetToCheck(requestIdCheck string) (CheckStatusResponse,
 	return checkStatusResponse, nil
 }
 
+// post check status imageOps
 func (c *BaseController) PostToCheck(saveFileName string) (CheckResponse, error) {
 
 	tr := &http.Transport{
