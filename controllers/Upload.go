@@ -47,6 +47,17 @@ type CheckResponse struct {
 	RequestId string `json:"requestId"`
 }
 
+type ListResponse struct {
+	ImageId             string              `json:"imageId"`
+	Filename            string              `json:"fileName"`
+	UploadTime          string              `json:"uploadTime"`
+	UserId              string              `json:"userId"`
+	StorageMedium       string              `json:"storageMedium"`
+	SlimStatus          int                 `json:"slimStatus"`
+	CompressInfo        CompressInfo        `json:"compressInfo"`
+	CheckStatusResponse CheckStatusResponse `json:"checkStatusResponse"`
+}
+
 func createDirectory(dir string) error { //make dir if path doesn't exist
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0755)
@@ -192,13 +203,82 @@ func CopyFile(srcFileName string, dstFileName string) (written int64, err error)
 }
 
 // @Title Get
-// @Description test connection is ok or not
+// @Description return full image list
 // @Success 200 ok
 // @Failure 400 bad request
 // @router "/image-management/v1/images [get]
 func (c *UploadController) Get() {
-	log.Info("Upload get request received.")
-	c.Ctx.WriteString("Upload get request received.")
+	log.Info("Query for all images get request received.")
+
+	clientIp := c.Ctx.Input.IP()
+	err := util.ValidateSrcAddress(clientIp)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		return
+	}
+	c.displayReceivedMsg(clientIp)
+
+	var imageFileDbList []models.ImageDB
+
+	_, err = c.Db.QueryTable("image_d_b", &imageFileDbList, "")
+	if err != nil {
+		log.Error("fail to query database with error")
+		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database with error")
+		return
+	}
+
+	resultList := make([]ListResponse, 0)
+
+	for _, imageFileDb := range imageFileDbList {
+		imageId := imageFileDb.ImageId
+		filename := imageFileDb.FileName
+		uploadTime := imageFileDb.UploadTime.Format("2006-01-02 15:04:05")
+		userId := imageFileDb.UserId
+		storageMedium := imageFileDb.StorageMedium
+		slimStatus := imageFileDb.SlimStatus
+
+		var checkStatusResponse CheckStatusResponse
+		var checkInfo CheckInfo
+		var imageInfo ImageInfo
+		var compressInfo CompressInfo
+
+		compressInfo.CompressStatus = imageFileDb.CompressStatus
+		compressInfo.CompressMsg = imageFileDb.CompressMsg
+		compressInfo.CompressRate = imageFileDb.CompressRate
+
+		imageInfo.Format = imageFileDb.Format
+		imageInfo.CheckErrors = imageFileDb.CheckErrors
+		imageInfo.ImageEndOffset = imageFileDb.ImageEndOffset
+
+		checkInfo.Checksum = imageFileDb.Checksum
+		checkInfo.CheckResult = imageFileDb.CheckResult
+		checkInfo.ImageInformation = imageInfo
+
+		checkStatusResponse.Msg = imageFileDb.CheckMsg
+		checkStatusResponse.Status = imageFileDb.CheckStatus
+		checkStatusResponse.CheckInformation = checkInfo
+
+		var listResponse ListResponse
+		listResponse.ImageId = imageId
+		listResponse.Filename = filename
+		listResponse.UploadTime = uploadTime
+		listResponse.UserId = userId
+		listResponse.StorageMedium = storageMedium
+		listResponse.SlimStatus = slimStatus
+		listResponse.CompressInfo = compressInfo
+		listResponse.CheckStatusResponse = checkStatusResponse
+		resultList = append(resultList, listResponse)
+	}
+
+	queryResp, err := json.Marshal(resultList)
+
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "json marshall fail to return query details")
+		return
+	}
+
+	_, _ = c.Ctx.ResponseWriter.Write(queryResp)
+
 }
 
 // @Title Post
@@ -260,7 +340,7 @@ func (c *UploadController) Post() {
 		}
 	}
 
-	 checkResponse,err := c.PostToCheck(saveFileName)
+	checkResponse, err := c.PostToCheck(saveFileName)
 	if err != nil {
 		log.Error("cannot send send POST request to imageOps Check, with filename: " + saveFileName)
 		c.writeErrorResponse("cannot send request to imagesOps", util.StatusNotFound)
@@ -296,7 +376,6 @@ func (c *UploadController) Post() {
 	log.Info("go routine finish")
 }
 
-
 func (c *UploadController) ForeCheck() (string, error, multipart.File, *multipart.FileHeader, bool) {
 	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
@@ -326,5 +405,3 @@ func (c *UploadController) ForeCheck() (string, error, multipart.File, *multipar
 	}
 	return clientIp, err, file, head, false
 }
-
-
