@@ -58,7 +58,7 @@ type ListResponse struct {
 	CheckStatusResponse CheckStatusResponse `json:"checkStatusResponse"`
 }
 
-func createDirectory(dir string) error { //make dir if path doesn't exist
+func CreateDirectory(dir string) error { //make dir if path doesn't exist
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
@@ -123,7 +123,7 @@ func (c *UploadController) SaveByPriority(priority string, saveFilename string) 
 	default:
 		defaultPath := util.LocalStoragePath
 
-		err := createDirectory(defaultPath)
+		err := CreateDirectory(defaultPath)
 		if err != nil {
 			log.Error("failed to create file path" + defaultPath)
 			return err

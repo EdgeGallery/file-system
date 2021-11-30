@@ -53,7 +53,7 @@ func (c *MergeChunkController) insertOrUpdateFileRecord(imageId, fileName, userI
 }
 
 //add more storage logic here
-func (c *MergeChunkController) getStorageMedium(priority string) string {
+func (c *MergeChunkController) GetStorageMedium(priority string) string {
 	switch {
 	case priority == "A":
 		return "huaweiCloud"
@@ -110,7 +110,7 @@ func (c *MergeChunkController) Post() {
 	//create imageId, fileName, uploadTime, userId
 	imageId := CreateImageID()
 	//get a storage medium to let fe know
-	storageMedium := c.getStorageMedium(priority)
+	storageMedium := c.GetStorageMedium(priority)
 	saveFilePath := storageMedium + imageId + filename //   app/vmImages/identifier/xx.zip
 	file, err := os.OpenFile(saveFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	if err != nil {

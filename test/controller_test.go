@@ -84,7 +84,7 @@ func TestControllerSuccess(t *testing.T) {
 	})
 	defer patch1.Reset()
 
-	testUploadGet(t, extraParams, "", testDb)
+	//testUploadGet(t, extraParams, "", testDb)
 
 	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
 	testUploadPostValidateSrcAddress(t, extraParams, path, testDb)
@@ -92,7 +92,7 @@ func TestControllerSuccess(t *testing.T) {
 	testUploadPostImageOpsPostGetOk(t, extraParams, path, testDb)
 }
 
-func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+/*func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 
 	t.Run("testUploadGet", func(t *testing.T) {
 
@@ -120,7 +120,7 @@ func testUploadGet(t *testing.T, extraParams map[string]string, path string, tes
 		assert.Equal(t, 0, queryController.Ctx.ResponseWriter.Status, "Upload get request received.")
 		_ = queryController.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 	})
-}
+}*/
 
 func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 
@@ -257,13 +257,16 @@ func TestUploadGetCheckInProgress(t *testing.T) {
 }
 
 func TestCronGetCheck(t *testing.T) {
+
 	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
 		Data: make(map[interface{}]interface{})}
+
 	testDb := &MockDb{
 		imageRecords: make(map[string]models.ImageDB),
 	}
-	uploadController := &controllers.UploadController{controllers.BaseController{Db: testDb,
+	uploadController := &controllers.UploadController{BaseController: controllers.BaseController{Db: testDb,
 		Controller: getBeegoController}}
+
 	var responseGetBodyMap map[string]interface{}
 	responseGetBodyMap = make(map[string]interface{})
 

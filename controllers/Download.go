@@ -187,7 +187,7 @@ func (this *DownloadController) dealWithDownload(originalName string, filePath s
 		log.Info("filenameWithoutExt:" + filenameWithoutExt)
 		zipFilePath := filePath + filenameWithoutExt
 		log.Info("zipFilePath :" + zipFilePath)
-		err := createDirectory(zipFilePath)
+		err := CreateDirectory(zipFilePath)
 		if err != nil {
 			log.Error("when compress, failed to create file path")
 			return
