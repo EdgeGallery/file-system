@@ -67,7 +67,7 @@ func (c *UploadChunkController) saveByIdentifier(priority string, saveFilename s
 		defaultPath := util.LocalStoragePath // "/usr/app/vmImage/"
 		saveFilePath := defaultPath + identifier + "/"
 
-		err := createDirectory(saveFilePath)
+		err := CreateDirectory(saveFilePath)
 		if err != nil {
 			log.Error("failed to create file path: " + saveFilePath)
 			return err
