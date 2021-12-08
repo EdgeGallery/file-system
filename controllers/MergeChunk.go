@@ -85,7 +85,7 @@ func (c *MergeChunkController) Get() {
 // @Failure 400 bad request
 // @router "/image-management/v1/images/merge [post]
 func (c *MergeChunkController) Post() {
-	log.Info("Upload post request received.")
+	log.Info("Merge post request received.")
 	clientIp := c.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
@@ -117,13 +117,16 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the previous file path")
 		return
 	}
+	log.Info("open file from "+ saveFilePath)
 	files, err := ioutil.ReadDir(storageMedium + identifier + "/")
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the file path")
 		return
 	}
 	totalChunksNum := len(files) //total number of chunks
+	log.Info("The total file chunk number is "+ strconv.Itoa(totalChunksNum))
 	for i := 1; i <= totalChunksNum; i++ {
+		log.Info("loading " + strconv.Itoa(i)+"th file chunk")
 		tmpFilePath := storageMedium + identifier + "/" + strconv.Itoa(i) + ".part"
 		f, err := os.OpenFile(tmpFilePath, os.O_RDONLY, os.ModePerm)
 		if err != nil {
@@ -142,11 +145,14 @@ func (c *MergeChunkController) Post() {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete the part file in path")
 			return
 		}
+		log.Info( strconv.Itoa(i)+"th file chunk merge success")
 	}
 	file.Close()
 
+	log.Info("Chunk files merge finished.")
 	saveFileName := imageId + filename
 	if filepath.Ext(filename) == ".zip" {
+		log.Info("begin to compress the merged file to zip file")
 		filenameWithoutExt := strings.TrimSuffix(filename, filepath.Ext(filename))
 		decompressFilePath := saveFilePath
 		arr, err := DeCompress(decompressFilePath, storageMedium+filenameWithoutExt)
@@ -160,7 +166,7 @@ func (c *MergeChunkController) Post() {
 		dstFileName := storageMedium + saveFileName
 		_, err = CopyFile(srcFileName, dstFileName)
 		if err != nil {
-			log.Error("when decompress, failed to copy file")
+			log.Error("when compressing, failed to copy file")
 			return
 		}
 		err = os.RemoveAll(storageMedium + filenameWithoutExt + "/")
@@ -174,8 +180,10 @@ func (c *MergeChunkController) Post() {
 			return
 		}
 		filename = originalName
+		log.Info("compress the merged file to zip file success")
 	}
 
+	log.Info("begin to request to imageOps check with POST")
 	checkResponse, err := c.PostToCheck(saveFileName)
 	if err != nil {
 		log.Error("cannot send send POST request to imageOps Check, with filename: " + saveFileName)
@@ -185,6 +193,7 @@ func (c *MergeChunkController) Post() {
 	status := checkResponse.Status
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
+	log.Info("get Check requestId from imageOps with "+ requestIdCheck)
 
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
@@ -197,6 +206,7 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
 		return
 	}
+	log.Info("delete temporary file path from: "+ storageMedium + identifier + "/")
 
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
@@ -214,6 +224,7 @@ func (c *MergeChunkController) Post() {
 	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
+	log.Info("begin to request to imageOps check with GET")
 	time.Sleep(time.Duration(5) * time.Second)
 	go c.CronGetCheck(requestIdCheck, imageId,  filename, userId, storageMedium, saveFileName)
 }
