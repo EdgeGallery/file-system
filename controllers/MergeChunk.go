@@ -117,16 +117,16 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the previous file path")
 		return
 	}
-	log.Info("open file from "+ saveFilePath)
+	log.Info("open file from " + saveFilePath)
 	files, err := ioutil.ReadDir(storageMedium + identifier + "/")
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the file path")
 		return
 	}
 	totalChunksNum := len(files) //total number of chunks
-	log.Info("The total file chunk number is "+ strconv.Itoa(totalChunksNum))
+	log.Info("The total file chunk number is " + strconv.Itoa(totalChunksNum))
 	for i := 1; i <= totalChunksNum; i++ {
-		log.Info("loading " + strconv.Itoa(i)+"th file chunk")
+		log.Info("loading " + strconv.Itoa(i) + "th file chunk")
 		tmpFilePath := storageMedium + identifier + "/" + strconv.Itoa(i) + ".part"
 		f, err := os.OpenFile(tmpFilePath, os.O_RDONLY, os.ModePerm)
 		if err != nil {
@@ -145,7 +145,7 @@ func (c *MergeChunkController) Post() {
 			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete the part file in path")
 			return
 		}
-		log.Info( strconv.Itoa(i)+"th file chunk merge success")
+		log.Info(strconv.Itoa(i) + "th file chunk merge success")
 	}
 	file.Close()
 
@@ -193,7 +193,7 @@ func (c *MergeChunkController) Post() {
 	status := checkResponse.Status
 	msg := checkResponse.Msg
 	requestIdCheck := checkResponse.RequestId
-	log.Info("get Check requestId from imageOps with "+ requestIdCheck)
+	log.Info("get Check requestId from imageOps with " + requestIdCheck)
 
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, requestIdCheck)
 	if err != nil {
@@ -206,7 +206,7 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete part file in vm")
 		return
 	}
-	log.Info("delete temporary file path from: "+ storageMedium + identifier + "/")
+	log.Info("delete temporary file path from: " + storageMedium + identifier + "/")
 
 	uploadResp, err := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
@@ -226,7 +226,5 @@ func (c *MergeChunkController) Post() {
 
 	log.Info("begin to request to imageOps check with GET")
 	time.Sleep(time.Duration(5) * time.Second)
-	go c.CronGetCheck(requestIdCheck, imageId,  filename, userId, storageMedium, saveFileName)
+	go c.CronGetCheck(requestIdCheck, imageId, filename, userId, storageMedium, saveFileName)
 }
-
-

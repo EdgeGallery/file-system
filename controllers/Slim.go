@@ -413,6 +413,12 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 
 		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
 			time.Sleep(time.Duration(10) * time.Second)
+			err := c.insertOrUpdateCheckRecordAfterCompress(imageId, imageFileDb.FileName, imageFileDb.UserId, imageFileDb.StorageMedium, imageFileDb.SaveFileName, util.Slimming, checkStatusResponse, compressInfo)
+			if err != nil {
+				log.Error(util.FailedToInsertDataToDB)
+				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+				return
+			}
 			continue
 		} else if checkStatusResponse.Status == util.CheckCompleted { //check completed
 			isCheckFinished = true
