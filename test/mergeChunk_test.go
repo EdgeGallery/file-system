@@ -17,24 +17,14 @@
 package test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fileSystem/controllers"
 	"fileSystem/models"
-	"fileSystem/util"
-	"github.com/agiledragon/gomonkey"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -47,7 +37,7 @@ func TestMergeGet(t *testing.T) {
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
-func TestMergePost(t *testing.T) {
+/*func TestMergePost(t *testing.T) {
 
 	c := getMergeChunkController()
 
@@ -108,7 +98,7 @@ func TestMergePost(t *testing.T) {
 	for _,v := range mactchPath{
 		_ = os.Remove(v)
 	}
-}
+}*/
 
 func getMergeChunkController() *controllers.MergeChunkController {
 	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},

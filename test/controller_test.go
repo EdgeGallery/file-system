@@ -256,7 +256,7 @@ func TestUploadGetCheckInProgress(t *testing.T) {
 	c.GetToCheck(requestId)
 }
 
-func TestCronGetCheck(t *testing.T) {
+/*func TestCronGetCheck(t *testing.T) {
 
 	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
 		Data: make(map[interface{}]interface{})}
@@ -300,7 +300,7 @@ func TestCronGetCheck(t *testing.T) {
 
 	uploadController.CronGetCheck(requestId, imageId, "name", UserId, "/usr/app/vmImage/", "saveFileName")
 
-}
+}*/
 
 func TestUploadPostToCheck(t *testing.T) {
 
