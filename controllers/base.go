@@ -117,25 +117,27 @@ func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, ori
 			return
 		}
 
+		var imageFileDb models.ImageDB
+		log.Info("query db ok.")
+		_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+		if err != nil {
+			c.writeErrorResponse("fail to query database", util.StatusNotFound)
+			return
+		}
+		slimStatus := imageFileDb.SlimStatus
+		err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, slimStatus, checkStatusResponse)
+
+		if err != nil {
+			log.Error(util.FailedToInsertDataToDB)
+			c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
+			return
+		}
+
 		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
-			time.Sleep(time.Duration(30) * time.Second)
+			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		} else {
 			isCheckFinished = true
-			var imageFileDb models.ImageDB
-			log.Info("query db ok.")
-			_, err := c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
-			if err != nil {
-				c.writeErrorResponse("fail to query database", util.StatusNotFound)
-				return
-			}
-			slimStatus := imageFileDb.SlimStatus
-			err = c.insertOrUpdateCheckRecord(imageId, originalName, userId, storageMedium, saveFileName, slimStatus, checkStatusResponse)
-			if err != nil {
-				log.Error(util.FailedToInsertDataToDB)
-				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
-				return
-			}
 		}
 	}
 }
