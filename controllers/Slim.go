@@ -43,10 +43,12 @@ type CompressResult struct {
 }
 
 type ImageInfo struct {
-	ImageEndOffset string `json:"image-end-offset"`
-	CheckErrors    string `json:"check-errors"`
-	Format         string `json:"format"`
-	Filename       string `json:"filename"`
+	ImageEndOffset string  `json:"image-end-offset"`
+	CheckErrors    string  `json:"check-errors"`
+	Format         string  `json:"format"`
+	Filename       string  `json:"filename"`
+	VirtualSize    float32 `json:"virtual_size"`
+	DiskSize       string  `json:"disk_size"`
 }
 
 type CheckInfo struct {
@@ -182,6 +184,8 @@ func (c *SlimController) insertOrUpdateCheckRecordAfterCompress(imageId, fileNam
 		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
 		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
 		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
+		VirtualSize:    checkStatusResponse.CheckInformation.ImageInformation.VirtualSize,
+		DiskSize:       checkStatusResponse.CheckInformation.ImageInformation.DiskSize,
 		//Compress进度参数
 		CompressStatus: compressStatusResponse.Status,
 		CompressMsg:    compressStatusResponse.Msg,

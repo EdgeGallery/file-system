@@ -108,6 +108,9 @@ func (c *ImageController) Get() {
 	imageInfo.Format = imageFileDb.Format
 	imageInfo.CheckErrors = imageFileDb.CheckErrors
 	imageInfo.ImageEndOffset = imageFileDb.ImageEndOffset
+	imageInfo.VirtualSize = imageFileDb.VirtualSize
+	imageInfo.DiskSize = imageFileDb.DiskSize
+
 
 	checkInfo.Checksum = imageFileDb.Checksum
 	checkInfo.CheckResult = imageFileDb.CheckResult
