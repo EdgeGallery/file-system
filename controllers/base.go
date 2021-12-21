@@ -54,6 +54,8 @@ func (c *BaseController) insertOrUpdateCheckRecord(imageId, fileName, userId, st
 		ImageEndOffset: checkStatusResponse.CheckInformation.ImageInformation.ImageEndOffset,
 		CheckErrors:    checkStatusResponse.CheckInformation.ImageInformation.CheckErrors,
 		Format:         checkStatusResponse.CheckInformation.ImageInformation.Format,
+		VirtualSize:    checkStatusResponse.CheckInformation.ImageInformation.VirtualSize,
+		DiskSize:       checkStatusResponse.CheckInformation.ImageInformation.DiskSize,
 	}
 	err := c.Db.InsertOrUpdateData(fileRecord, "image_id")
 	if err != nil && err.Error() != util.LastInsertIdNotSupported {
@@ -182,7 +184,7 @@ func (c *BaseController) PostToCheck(saveFileName string) (CheckResponse, error)
 	response, err := client.Post("http://localhost:5000/api/v1/vmimage/check", "application/json", requestBody)
 	if err != nil {
 		log.Error("cannot send send POST request to imageOps Check, with filename: " + saveFileName)
-		c.writeErrorResponse("cannot send request to imagesOps",util.StatusNotFound)
+		c.writeErrorResponse("cannot send request to imagesOps", util.StatusNotFound)
 		return CheckResponse{}, err
 	}
 	defer response.Body.Close()

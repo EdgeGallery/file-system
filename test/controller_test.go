@@ -239,6 +239,8 @@ func TestUploadGetCheckInProgress(t *testing.T) {
 	imageInfo.CheckErrors = "0"
 	imageInfo.Format = "qcow2"
 	imageInfo.Filename = "ubuntu-18.04.qcow2"
+	imageInfo.VirtualSize = 40.0
+	imageInfo.DiskSize = "578359296"
 	checkInfo.ImageInformation = imageInfo
 	checkInfo.CheckResult = 0
 	checkInfo.Checksum = "782fa5257615748e673eefe0143188e4"

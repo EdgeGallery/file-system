@@ -47,6 +47,8 @@ type ImageDB struct {
 	ImageEndOffset    string
 	CheckErrors       string
 	Format            string
+	VirtualSize       float32
+	DiskSize          string
 }
 
 //Init imageDB info record
