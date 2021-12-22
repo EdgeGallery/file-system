@@ -400,7 +400,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 	time.Sleep(time.Duration(5) * time.Second)
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
-	checkTimes = 180 //30 MinS
+	checkTimes = 720 //30 MinS
 
 	for !isCheckFinished && checkTimes > 0 {
 
@@ -446,6 +446,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 }
 
 func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, clientIp string) (CheckStatusResponse, bool) {
+	log.Info("begin to get to check imageops while slimming, requestIdCheck:" + requestIdCheck)
 	responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
@@ -459,6 +460,9 @@ func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, 
 		c.writeErrorResponse("Slim GET to image check failed to unmarshal request", util.BadRequest)
 		return CheckStatusResponse{}, true
 	}
+	log.Info("after get to check imageops while slimming, checksum:" + checkStatusResponse.CheckInformation.Checksum)
+	log.Info("after get to check imageops while slimming, DiskSize:" + checkStatusResponse.CheckInformation.ImageInformation.DiskSize)
+	log.Info("after get to check imageops while slimming, Status:" + strconv.Itoa(checkStatusResponse.Status))
 	return checkStatusResponse, false
 }
 
