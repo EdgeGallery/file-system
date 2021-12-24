@@ -48,15 +48,6 @@ type CompressInfo struct {
 func (c *ImageController) Get() {
 	log.Info("Query for local image get request received.")
 
-	clientIp := c.Ctx.Input.IP()
-	err := util.ValidateSrcAddress(clientIp)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
-		return
-	}
-
-	c.displayReceivedMsg(clientIp)
-
 	var imageFileDb models.ImageDB
 
 	imageId := c.Ctx.Input.Param(":imageId")
@@ -111,7 +102,6 @@ func (c *ImageController) Get() {
 	imageInfo.VirtualSize = imageFileDb.VirtualSize
 	imageInfo.DiskSize = imageFileDb.DiskSize
 
-
 	checkInfo.Checksum = imageFileDb.Checksum
 	checkInfo.CheckResult = imageFileDb.CheckResult
 	checkInfo.ImageInformation = imageInfo
@@ -132,7 +122,7 @@ func (c *ImageController) Get() {
 	})
 
 	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return query details")
+		c.writeErrorResponse("fail to return query details", util.StatusInternalServerError)
 		return
 	}
 
@@ -148,23 +138,15 @@ func (c *ImageController) Get() {
 // @router /image-management/v1/images/:imageId [DELETE]
 func (c *ImageController) Delete() {
 	log.Info("Delete local image package request received.")
-	clientIp := c.Ctx.Input.IP()
-	err := util.ValidateSrcAddress(clientIp)
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
-		return
-	}
-
-	c.displayReceivedMsg(clientIp)
 
 	var imageFileDb models.ImageDB
 
 	imageId := c.Ctx.Input.Param(":imageId")
 
-	_, err = c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+	_, err := c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
 	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query this imageId in database")
+		c.writeErrorResponse("fail to query this imageId in database", util.StatusNotFound)
 		return
 	}
 
@@ -184,17 +166,12 @@ func (c *ImageController) Delete() {
 	}
 
 	err = c.Db.DeleteData(fileRecord, "image_id")
-	if err != nil && err.Error() != util.LastInsertIdNotSupported {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, err.Error())
-		return
-	}
 
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete package in vm")
+	if err != nil && err.Error() != util.LastInsertIdNotSupported{
+		c.writeErrorResponse("fail to delete package in db", util.StatusInternalServerError)
 		return
 	} else {
 		c.Ctx.WriteString("delete success")
 		log.Info("delete file from " + storageMedium)
 	}
-
 }
