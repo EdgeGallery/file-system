@@ -31,17 +31,25 @@ import (
 )
 
 func TestImageGet(t *testing.T) {
-
 	c := getImageController()
+	c.Ctx.Input.SetParam(":imageId", imageId)
 	c.Get()
 	// Check for success case wherein the status value will be default i.e. 0
 	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, "Image get request result received.")
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
-func TestImageDelete(t *testing.T) {
-
+func TestImageGetImageError(t *testing.T) {
 	c := getImageController()
+	c.Get()
+	// Check for success case wherein the status value will be default i.e. 0
+	assert.Equal(t, util.StatusNotFound, c.Ctx.ResponseWriter.Status, "Image get request result received.")
+	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
+}
+
+func TestImageDelete(t *testing.T) {
+	c := getImageController()
+	c.Ctx.Input.SetParam(":imageId", imageId)
 	c.Delete()
 	// Check for success case wherein the status value will be default i.e. 0
 	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, "Image get request result received.")
@@ -59,13 +67,11 @@ func getImageController() *controllers.ImageController {
 		UserId:        UserId,
 		SaveFileName:  saveFileName,
 		StorageMedium: storageMedium,
+		SlimStatus:    2,
 	}
 
-	recordMap := make(map[string]models.ImageDB)
-	recordMap[imageId] = fileRecord
-
 	testDb := &MockDb{
-		imageRecords: recordMap,
+		imageRecords: fileRecord,
 	}
 	c := &controllers.ImageController{BaseController: controllers.BaseController{Db: testDb,
 		Controller: getBeegoController}}
@@ -82,6 +88,5 @@ func getImageController() *controllers.ImageController {
 	c.Ctx.Input = context.NewInput()
 	c.Ctx.Output.Reset(c.Ctx)
 	c.Ctx.Input.Reset(c.Ctx)
-	c.Ctx.Input.SetParam(":imageId", imageId)
 	return c
 }

@@ -40,7 +40,7 @@ func TestControllerZipSuccess(t *testing.T) {
 	}
 
 	testDb := &MockDb{
-		imageRecords: make(map[string]models.ImageDB),
+		imageRecords: models.ImageDB{},
 	}
 
 	var c *beego.Controller

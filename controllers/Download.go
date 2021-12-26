@@ -38,7 +38,7 @@ type DownloadController struct {
 // @Title PathCheck
 // @Description check file in path is existed or not
 // @Param   Source Zip File Path    string
-func (this *DownloadController) PathCheck(path string) bool {
+func (d *DownloadController) PathCheck(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true
@@ -142,31 +142,31 @@ func subString(str string, start, end int) string {
 // @Success 200 ok
 // @Failure 400 bad request
 // @router /image-management/v1/images/:imageId/action/download [get]
-func (this *DownloadController) Get() {
+func (d *DownloadController) Get() {
 	log.Info("Download get request received.")
 
-	clientIp := this.Ctx.Input.IP()
+	clientIp := d.Ctx.Input.IP()
 	err := util.ValidateSrcAddress(clientIp)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
+		d.HandleLoggingForError(clientIp, util.BadRequest, util.ClientIpaddressInvalid)
 		return
 	}
 
-	this.displayReceivedMsg(clientIp)
+	d.displayReceivedMsg(clientIp)
 
 	var imageFileDb models.ImageDB
 
-	imageId := this.Ctx.Input.Param(":imageId")
+	imageId := d.Ctx.Input.Param(":imageId")
 	log.Info("query db ok.")
-	_, err = this.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
+	_, err = d.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 	if err != nil {
-		this.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
+		d.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
 	}
 
 	filePath := imageFileDb.StorageMedium
-	if !this.PathCheck(filePath) {
-		this.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
+	if !d.PathCheck(filePath) {
+		d.HandleLoggingForError(clientIp, util.StatusNotFound, "file path doesn't exist")
 		return
 	}
 	originalName := imageFileDb.FileName
@@ -177,11 +177,11 @@ func (this *DownloadController) Get() {
 		downloadPath = filePath + "compressed" + imageFileDb.ImageId + imageFileDb.FileName
 	}
 	log.Info(util.OriginalNameIs + originalName)
-	this.dealWithDownload(originalName, filePath, downloadPath)
+	d.dealWithDownload(originalName, filePath, downloadPath)
 }
 
-func (this *DownloadController) dealWithDownload(originalName string, filePath string, downloadPath string) {
-	if this.Ctx.Input.Query("isZip") == "true" {
+func (d *DownloadController) dealWithDownload(originalName string, filePath string, downloadPath string) {
+	if d.Ctx.Input.Query("isZip") == "true" {
 		log.Info("begin to compress")
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
 		log.Info("filenameWithoutExt:" + filenameWithoutExt)
@@ -213,24 +213,24 @@ func (this *DownloadController) dealWithDownload(originalName string, filePath s
 			return
 		}
 		log.Info("downloadName: " + downloadName)
-		this.Ctx.Output.Download(filePath+downloadName, downloadName)
-		this.deleteCache(err, filePath, downloadName, zipFilePath)
+		d.Ctx.Output.Download(filePath+downloadName, downloadName)
+		d.deleteCache(err, filePath, downloadName, zipFilePath)
 	} else {
 		log.Info(util.OriginalNameIs + originalName)
-		this.Ctx.Output.Download(downloadPath, originalName)
+		d.Ctx.Output.Download(downloadPath, originalName)
 	}
 }
 
-func (this *DownloadController) deleteCache(err error, filePath string, downloadName string, zipFilePath string) bool {
+func (d *DownloadController) deleteCache(err error, filePath string, downloadName string, zipFilePath string) bool {
 	err = os.RemoveAll(zipFilePath)
 	if err != nil {
-		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		d.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 		return true
 	}
 
 	err = os.Remove(filePath + downloadName)
 	if err != nil {
-		this.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
+		d.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
 		return true
 	}
 

@@ -104,7 +104,7 @@ func getMergeChunkController() *controllers.MergeChunkController {
 	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
 		Data: make(map[interface{}]interface{})}
 	testDb := &MockDb{
-		imageRecords: make(map[string]models.ImageDB),
+		imageRecords: models.ImageDB{},
 	}
 	c := &controllers.MergeChunkController{BaseController: controllers.BaseController{Db: testDb,
 		Controller: getBeegoController}}
