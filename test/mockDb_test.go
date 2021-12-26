@@ -20,11 +20,10 @@ import (
 	"errors"
 	"fileSystem/models"
 	"fileSystem/util"
-
 )
 
 type MockDb struct {
-	imageRecords   map[string]models.ImageDB
+	imageRecords models.ImageDB
 }
 
 func (db *MockDb) InitDatabase() error {
@@ -35,7 +34,7 @@ func (db *MockDb) InsertOrUpdateData(data interface{}, cols ...string) (err erro
 	if cols[0] == util.DbImageId {
 		imageDb, ok := data.(*models.ImageDB)
 		if ok {
-			db.imageRecords[imageDb.ImageId] = *imageDb
+			db.imageRecords = *imageDb
 		}
 	}
 	return nil
@@ -45,7 +44,7 @@ func (db *MockDb) ReadData(data interface{}, cols ...string) (err error) {
 	if cols[0] == util.DbImageId {
 		imageDb, ok := data.(*models.ImageDB)
 		if ok {
-            readImageData := db.imageRecords[imageDb.ImageId]
+			readImageData := db.imageRecords
 			if (readImageData == models.ImageDB{}) {
 				return errors.New("Image DB record not found ")
 			}
@@ -59,13 +58,13 @@ func (db *MockDb) ReadData(data interface{}, cols ...string) (err error) {
 
 func (db *MockDb) DeleteData(data interface{}, cols ...string) (err error) {
 	if cols[0] == util.DbImageId {
-		imageDb, ok := data.(*models.ImageDB)
+		_, ok := data.(*models.ImageDB)
 		if ok {
-			readImageData := db.imageRecords[imageDb.ImageId]
+			readImageData := db.imageRecords
 			if (readImageData == models.ImageDB{}) {
 				return errors.New("Image DB record not found ")
 			}
-			delete(db.imageRecords, readImageData.ImageId)
+			db.imageRecords = models.ImageDB{}
 		}
 	}
 	return nil
@@ -77,21 +76,13 @@ func (db *MockDb) QueryCount(tableName string) (int64, error) {
 
 func (db *MockDb) QueryCountForTable(tableName, fieldName, fieldValue string) (int64, error) {
 	if tableName == "image_d_b" {
-		var count int64
-		for _, _ = range db.imageRecords {
-			count++
-		}
-		return count, nil
+		return 1, nil
 	}
 	return 0, nil
 }
 
 func (db *MockDb) QueryTable(tableName string, container interface{}, field string, container1 ...interface{}) (int64, error) {
 	if tableName == "image_d_b" {
-		for _, appInfoRec := range db.imageRecords {
-			container = appInfoRec
-		}
-
 		return 1, nil
 	}
 	return 0, nil
@@ -100,6 +91,3 @@ func (db *MockDb) QueryTable(tableName string, container interface{}, field stri
 func (db *MockDb) LoadRelated(md interface{}, name string) (int64, error) {
 	return 0, nil
 }
-
-
-
