@@ -17,13 +17,13 @@ module fileSystem
 go 1.14
 
 require (
+	github.com/agiledragon/gomonkey v2.0.1+incompatible
 	github.com/astaxie/beego v1.12.0
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/lib/pq v1.7.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18 // indirect
 	github.com/sirupsen/logrus v1.6.0
-	google.golang.org/appengine v1.6.7 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/agiledragon/gomonkey v2.0.1+incompatible
+	google.golang.org/appengine v1.6.7 // indirect
 )

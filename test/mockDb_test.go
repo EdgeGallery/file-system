@@ -48,7 +48,7 @@ func (db *MockDb) ReadData(data interface{}, cols ...string) (err error) {
 			if (readImageData == models.ImageDB{}) {
 				return errors.New("Image DB record not found ")
 			}
-			//TODO:补全
+			//fulfill the field
 			imageDb.FileName = readImageData.FileName
 			imageDb.SaveFileName = readImageData.SaveFileName
 		}

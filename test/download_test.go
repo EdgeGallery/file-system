@@ -65,13 +65,13 @@ func TestDownloadController(t *testing.T) {
 	})
 	defer patch1.Reset()
 
+	testDownloadNoErr(t, extraParams, path, testDb)
 	testDownloadIPError(t, extraParams, path, testDb)
 	testDownloadPathError(t, extraParams, path, testDb)
 	testDownloadPathOk(t, extraParams, path, testDb)
 	testDownloadCopyErr(t, extraParams, path, testDb)
 	testDownloadOsOpenErr(t, extraParams, path, testDb)
 	testDownloadCompressErr(t, extraParams, path, testDb)
-	testDownloadNoErr(t, extraParams, path, testDb)
 
 }
 
@@ -79,8 +79,8 @@ func testDownloadIPError(t *testing.T, extraParams map[string]string, path strin
 
 	t.Run("testDownloadIPError", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download",
+		queryRequest, _ := getHttpRequest(UploadUrl+
+			"/94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download",
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -103,8 +103,7 @@ func testDownloadIPError(t *testing.T, extraParams map[string]string, path strin
 func testDownloadPathError(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadPathError", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -133,8 +132,7 @@ func testDownloadPathError(t *testing.T, extraParams map[string]string, path str
 func testDownloadPathOk(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -175,8 +173,7 @@ func testDownloadPathOk(t *testing.T, extraParams map[string]string, path string
 func testDownloadCopyErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -223,8 +220,7 @@ func testDownloadCopyErr(t *testing.T, extraParams map[string]string, path strin
 func testDownloadOsOpenErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -275,8 +271,7 @@ func testDownloadOsOpenErr(t *testing.T, extraParams map[string]string, path str
 func testDownloadCompressErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadCompressErr", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -332,8 +327,7 @@ func testDownloadCompressErr(t *testing.T, extraParams map[string]string, path s
 func testDownloadNoErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 	t.Run("testDownloadNoErr", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images/"+
-			"94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true",
+		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 			extraParams, "file", path, "GET", []byte(""))
 
 		// Prepare Input
@@ -381,16 +375,16 @@ func testDownloadNoErr(t *testing.T, extraParams map[string]string, path string,
 		})
 		defer patch6.Reset()
 
-		/*		var file *os.File
-				patch7 := gomonkey.ApplyMethod(reflect.TypeOf(file),"Stat", func(*os.File)(fs.FileInfo, error) {
-					return nil,nil
-				})
-				defer patch7.Reset()*/
-
 		patch7 := gomonkey.ApplyFunc(controllers.Compress, func(_ []*os.File, _ string) error {
 			return nil
 		})
 		defer patch7.Reset()
+
+		patch8 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Ctx.Output), "Download",
+			func(_ *context.BeegoOutput, _ string, _ ...string) {
+				return
+			})
+		defer patch8.Reset()
 
 		// Test query
 		queryController.Get()

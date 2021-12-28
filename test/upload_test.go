@@ -40,22 +40,17 @@ import (
 )
 
 var (
-	BaseUrl       string = "http://edgegallery:9500/image-management/v1"
 	imageId       string = "94d6e70d-51f7-4b0d-965f-59dca2c3002c"
 	UserIdKey     string = "userId"
 	UserId        string = "71ea862b-5806-4196-bce3-434bf9c95b18"
 	requestId     string = "71ea862b-5806-4196-bce3-434bf9c95b18"
 	PriorityKey   string = "priority"
 	Priority      string = "0"
-	originalName         = "cirros.qcow2"
 	storageMedium        = "/usr/app/vmImage/"
 	saveFileName         = "71ea862b-5806-4196-bce3-434bf9c95b18cirros.qcow2"
 	err                  = errors.New("error")
-
-	Post   = "POST"
-	Put    = "PUT"
-	Get    = "GET"
-	Delete = "DELETE"
+	UploadUrl            = "http://edgegallery:9500/image-management/v1/images"
+	ZipUri               = "/94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true"
 )
 
 func TestControllerSuccess(t *testing.T) {
@@ -73,7 +68,7 @@ func TestControllerSuccess(t *testing.T) {
 	}
 
 	testDb := &MockDb{
-		imageRecords:models.ImageDB{},
+		imageRecords: models.ImageDB{},
 	}
 
 	var c *beego.Controller
@@ -84,49 +79,17 @@ func TestControllerSuccess(t *testing.T) {
 	})
 	defer patch1.Reset()
 
-	//testUploadGet(t, extraParams, "", testDb)
-
 	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
 	testUploadPostValidateSrcAddress(t, extraParams, path, testDb)
 
 	testUploadPostImageOpsPostGetOk(t, extraParams, path, testDb)
 }
 
-/*func testUploadGet(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
-
-	t.Run("testUploadGet", func(t *testing.T) {
-
-		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, false)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
-		// Test query
-		queryController.Get()
-
-		// Check for success case wherein the status value will be default i.e. 0
-		assert.Equal(t, 0, queryController.Ctx.ResponseWriter.Status, "Upload get request received.")
-		_ = queryController.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
-	})
-}*/
-
 func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 
 	t.Run("testUploadPost", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
+		queryRequest, _ := getHttpRequest(UploadUrl,
 			extraParams, "file", path, "POST", []byte(""))
 
 		// Prepare Input
@@ -157,8 +120,7 @@ func testUploadPostValidateSrcAddress(t *testing.T, extraParams map[string]strin
 
 	t.Run("testUploadPost", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
-			extraParams, "file", path, "POST", []byte(""))
+		queryRequest, _ := getHttpRequest(UploadUrl, extraParams, "file", path, "POST", []byte(""))
 
 		// Prepare Input
 		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
@@ -189,8 +151,7 @@ func testUploadPostImageOpsPostGetOk(t *testing.T, extraParams map[string]string
 	t.Run("testUploadPost", func(t *testing.T) {
 
 		//GET Request
-		queryRequest, _ := getHttpRequest("http://edgegallery:9500/image-management/v1/images",
-			extraParams, "file", path, "POST", []byte(""))
+		queryRequest, _ := getHttpRequest(UploadUrl, extraParams, "file", path, "POST", []byte(""))
 
 		// Prepare Input
 		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
@@ -258,52 +219,6 @@ func TestUploadGetCheckInProgress(t *testing.T) {
 	c.GetToCheck(requestId)
 }
 
-/*func TestCronGetCheck(t *testing.T) {
-
-	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-		Data: make(map[interface{}]interface{})}
-
-	testDb := &MockDb{
-		imageRecords: make(map[string]models.ImageDB),
-	}
-	uploadController := &controllers.UploadController{BaseController: controllers.BaseController{Db: testDb,
-		Controller: getBeegoController}}
-
-	var responseGetBodyMap map[string]interface{}
-	responseGetBodyMap = make(map[string]interface{})
-
-	var imageInfo controllers.ImageInfo
-	var checkInfo controllers.CheckInfo
-	var checkStatusResponse controllers.CheckStatusResponse
-
-	checkStatusResponse.Status = 6
-	checkStatusResponse.Msg = "Check Time Out"
-
-	responseGetBodyMap["status"] = 6
-	responseGetBodyMap["msg"] = "Check Time Out"
-
-	imageInfo.ImageEndOffset = "564330496"
-	imageInfo.CheckErrors = "0"
-	imageInfo.Format = "qcow2"
-	imageInfo.Filename = "ubuntu-18.04.qcow2"
-	checkInfo.ImageInformation = imageInfo
-	checkInfo.CheckResult = 0
-	checkInfo.Checksum = "782fa5257615748e673eefe0143188e4"
-	checkStatusResponse.CheckInformation = checkInfo
-	responseGetBodyMap["checkInfo"] = checkInfo
-
-	responseGetJson, _ := json.Marshal(responseGetBodyMap)
-	responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
-	patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
-		return &http.Response{Body: responseGetBody}, nil
-	})
-	defer patch3.Reset()
-
-	uploadController.CronGetCheck(requestId, imageId, "name", UserId, "/usr/app/vmImage/", "saveFileName")
-
-}*/
-
 func TestUploadPostToCheck(t *testing.T) {
 
 	var responsePostBodyMap map[string]interface{}
@@ -321,7 +236,7 @@ func TestUploadPostToCheck(t *testing.T) {
 	defer patch1.Reset()
 
 	c := getUploadController()
-	checkResponse,_ := c.PostToCheck("SaveFileName")
+	checkResponse, _ := c.PostToCheck("SaveFileName")
 	assert.Equal(t, 0, checkResponse.Status, "Post to Check is ok")
 
 }

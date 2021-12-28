@@ -299,8 +299,6 @@ func (c *UploadController) Post() {
 	}
 	defer file.Close()
 	filename := head.Filename //original name for file   1.zip or 1.qcow2
-
-	//TODO: 校验userId、priority 加一个校验
 	userId := c.GetString(util.UserId)
 	priority := c.GetString(util.Priority)
 	imageId := CreateImageID()
