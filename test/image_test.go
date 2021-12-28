@@ -30,12 +30,14 @@ import (
 	"testing"
 )
 
+var msg = "Image get request result received."
+
 func TestImageGet(t *testing.T) {
 	c := getImageController()
 	c.Ctx.Input.SetParam(":imageId", imageId)
 	c.Get()
 	// Check for success case wherein the status value will be default i.e. 0
-	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, "Image get request result received.")
+	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, msg)
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
@@ -43,7 +45,7 @@ func TestImageGetImageError(t *testing.T) {
 	c := getImageController()
 	c.Get()
 	// Check for success case wherein the status value will be default i.e. 0
-	assert.Equal(t, util.StatusNotFound, c.Ctx.ResponseWriter.Status, "Image get request result received.")
+	assert.Equal(t, util.StatusNotFound, c.Ctx.ResponseWriter.Status, msg)
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
@@ -52,13 +54,12 @@ func TestImageDelete(t *testing.T) {
 	c.Ctx.Input.SetParam(":imageId", imageId)
 	c.Delete()
 	// Check for success case wherein the status value will be default i.e. 0
-	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, "Image get request result received.")
+	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, msg)
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
 func getImageController() *controllers.ImageController {
-	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter:
-	httptest.NewRecorder()}},
+	getBeegoController := beego.Controller{Ctx: &context.Context{ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
 		Data: make(map[interface{}]interface{})}
 
 	fileRecord := models.ImageDB{

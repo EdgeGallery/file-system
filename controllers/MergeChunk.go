@@ -94,7 +94,6 @@ func (c *MergeChunkController) Post() {
 	}
 	c.displayReceivedMsg(clientIp)
 
-	//TODO: 校验userId、priority 加一个校验
 	userId := c.GetString(util.UserId)
 	identifier := c.GetString(util.Identifier)
 	filename := c.GetString(util.FileName)

@@ -39,6 +39,14 @@ type CompressInfo struct {
 	CompressRate   float32 `json:"compressRate"`
 }
 
+type ImageBasicInfo struct {
+	ImageId       string `json:"imageId"`
+	FileName      string `json:"fileName"`
+	UserId        string `json:"userId"`
+	StorageMedium string `json:"storageMedium"`
+	SaveFileName  string `json:"saveFileName"`
+}
+
 // @Title Get
 // @Description perform local image query operation
 // @Param	imageId 	string
@@ -167,7 +175,7 @@ func (c *ImageController) Delete() {
 
 	err = c.Db.DeleteData(fileRecord, "image_id")
 
-	if err != nil && err.Error() != util.LastInsertIdNotSupported{
+	if err != nil && err.Error() != util.LastInsertIdNotSupported {
 		c.writeErrorResponse("fail to delete package in db", util.StatusInternalServerError)
 		return
 	} else {
