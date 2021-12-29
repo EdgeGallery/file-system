@@ -36,7 +36,6 @@ func TestDownloadController(t *testing.T) {
 	// Setting file path
 	// return filesystem/test的目录地址
 	path, _ := os.Getwd()
-	path += "/mockImage.qcow2"
 
 	// Setting extra parameters
 	extraParams := map[string]string{
@@ -64,61 +63,26 @@ func TestDownloadController(t *testing.T) {
 		}()
 	})
 	defer patch1.Reset()
-
-	testDownloadNoErr(t, extraParams, path, testDb)
-	testDownloadIPError(t, extraParams, path, testDb)
-	testDownloadPathError(t, extraParams, path, testDb)
-	testDownloadPathOk(t, extraParams, path, testDb)
-	testDownloadCopyErr(t, extraParams, path, testDb)
-	testDownloadOsOpenErr(t, extraParams, path, testDb)
-	testDownloadCompressErr(t, extraParams, path, testDb)
-
+	queryController := getController(extraParams, path, testDb)
+	testDownloadIPError(queryController, t)
+	testDownloadPathError(queryController, t)
+	testDownloadPathOk(queryController, t)
+	testDownloadCopyErr(queryController, t)
+	testDownloadOsOpenErr(queryController, t)
+	testDownloadCompressErr(queryController, t)
+	testDownloadNoErr(queryController, t)
+	os.Remove(path + "/.zip")
 }
 
-func testDownloadIPError(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadIPError(queryController *controllers.DownloadController, t *testing.T) {
 
 	t.Run("testDownloadIPError", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+
-			"/94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download",
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, false)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		queryController.Get()
 	})
 }
 
-func testDownloadPathError(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadPathError(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadPathError", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -129,25 +93,8 @@ func testDownloadPathError(t *testing.T, extraParams map[string]string, path str
 	})
 }
 
-func testDownloadPathOk(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadPathOk(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -170,25 +117,8 @@ func testDownloadPathOk(t *testing.T, extraParams map[string]string, path string
 	})
 }
 
-func testDownloadCopyErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadCopyErr(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -217,25 +147,8 @@ func testDownloadCopyErr(t *testing.T, extraParams map[string]string, path strin
 	})
 }
 
-func testDownloadOsOpenErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadOsOpenErr(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -268,25 +181,8 @@ func testDownloadOsOpenErr(t *testing.T, extraParams map[string]string, path str
 	})
 }
 
-func testDownloadCompressErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadCompressErr(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadCompressErr", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -324,25 +220,12 @@ func testDownloadCompressErr(t *testing.T, extraParams map[string]string, path s
 	})
 }
 
-func testDownloadNoErr(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
+func testDownloadNoErr(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadNoErr", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
-			extraParams, "file", path, "GET", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, true)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
+		patch6 := gomonkey.ApplyFunc(os.Open, func(_ string) (*os.File, error) {
+			return nil, nil
+		})
+		defer patch6.Reset()
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -369,11 +252,6 @@ func testDownloadNoErr(t *testing.T, extraParams map[string]string, path string,
 			return 0, nil
 		})
 		defer patch5.Reset()
-
-		patch6 := gomonkey.ApplyFunc(os.Open, func(_ string) (*os.File, error) {
-			return nil, nil
-		})
-		defer patch6.Reset()
 
 		patch7 := gomonkey.ApplyFunc(controllers.Compress, func(_ []*os.File, _ string) error {
 			return nil
@@ -389,4 +267,31 @@ func testDownloadNoErr(t *testing.T, extraParams map[string]string, path string,
 		// Test query
 		queryController.Get()
 	})
+}
+
+func testDownloadNotZip(queryController *controllers.DownloadController, t *testing.T) {
+
+	t.Run("testDownloadIPError", func(t *testing.T) {
+		queryController.Get()
+	})
+}
+
+func getController(extraParams map[string]string, path string, testDb dbAdpater.Database) *controllers.DownloadController {
+	//GET Request
+	queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
+		extraParams, "file", path, "GET", []byte(""))
+
+	// Prepare Input
+	queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
+	setParam(queryInput, true)
+
+	// Prepare beego controller
+	queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
+		ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+		Data: make(map[interface{}]interface{})}
+
+	// Create Upload controller with mocked DB and prepared Beego controller
+	queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
+		Controller: queryBeegoController}}
+	return queryController
 }

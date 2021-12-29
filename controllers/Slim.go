@@ -309,7 +309,7 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 	imageBasicInfo.SaveFileName = imageFileDb.SaveFileName
 
 	isCompressFinished := false
-	checkTimes := 60
+	checkTimes := 120
 	for !isCompressFinished && checkTimes > 0 {
 		checkTimes--
 		compressStatusResponse, isFailed := c.getToCompress(client, requestIdCompress, clientIp)
@@ -408,6 +408,10 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 		}
 	}
 
+	if checkTimes == 0 {
+		log.Error("Check compress from imageops too many times, time out")
+	}
+
 	time.Sleep(time.Duration(5) * time.Second)
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
@@ -453,6 +457,9 @@ func (c *SlimController) asyCallImageOps(client *http.Client, requestIdCompress 
 				return
 			}
 		}
+	}
+	if checkTimes == 0 {
+		log.Error("Check from imageops too many times, time out")
 	}
 }
 
