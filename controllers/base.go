@@ -139,7 +139,7 @@ func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, ori
 		log.Info("imageId:" + imageId + ", check status:" + strconv.Itoa(checkStatusResponse.Status))
 		log.Info("imageId:" + imageId + ", check status:" + checkStatusResponse.Msg)
 		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
-			time.Sleep(time.Duration(10) * time.Second)
+			time.Sleep(time.Duration(15) * time.Second)
 			continue
 		} else {
 			isCheckFinished = true

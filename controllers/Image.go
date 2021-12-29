@@ -69,6 +69,7 @@ func (c *ImageController) Get() {
 	num, err := c.Db.QueryTable("image_d_b", &imageFileDb, "image_id__exact", imageId)
 
 	if err != nil {
+		log.Error("error status:" + err.Error())
 		c.writeErrorResponse("query database with some err, the imageId is "+imageId, util.StatusNotFound)
 		return
 	}
