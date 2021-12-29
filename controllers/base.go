@@ -30,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -103,7 +104,7 @@ func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, ori
 	log.Warn("go routine is here")
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
-	checkTimes := 120
+	checkTimes := 720
 	for !isCheckFinished && checkTimes > 0 {
 		checkTimes--
 		if len(requestIdCheck) == 0 {
@@ -134,13 +135,18 @@ func (c *BaseController) CronGetCheck(requestIdCheck string, imageId string, ori
 			c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 			return
 		}
-
+		log.Info("insert checkStatusResponse to database.")
+		log.Info("imageId:" + imageId + ", check status:" + strconv.Itoa(checkStatusResponse.Status))
+		log.Info("imageId:" + imageId + ", check status:" + checkStatusResponse.Msg)
 		if checkStatusResponse.Status == util.CheckInProgress { // check in progress
 			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		} else {
 			isCheckFinished = true
 		}
+	}
+	if checkTimes == 0 {
+		log.Error("Check from imageops too many times, time out")
 	}
 }
 

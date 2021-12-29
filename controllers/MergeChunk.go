@@ -195,6 +195,7 @@ func (c *MergeChunkController) Post() {
 	log.Info("get Check requestId from imageOps with " + requestIdCheck)
 
 	err = c.insertOrUpdateFileRecord(imageId, filename, userId, saveFileName, storageMedium, requestIdCheck)
+	log.Info("get requestIdCheck from imageOps:" + requestIdCheck + "and insert to database")
 	if err != nil {
 		log.Error(util.FailedToInsertDataToDB)
 		return
