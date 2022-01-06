@@ -51,6 +51,7 @@ var (
 	err                  = errors.New("error")
 	UploadUrl            = "http://edgegallery:9500/image-management/v1/images"
 	ZipUri               = "/94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download/?isZip=true"
+	NotZipUri            = "/94d6e70d-51f7-4b0d-965f-59dca2c3002c/action/download"
 )
 
 func TestControllerSuccess(t *testing.T) {

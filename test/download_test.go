@@ -17,6 +17,7 @@
 package test
 
 import (
+	"errors"
 	"fileSystem/controllers"
 	"fileSystem/models"
 	"fileSystem/pkg/dbAdpater"
@@ -64,6 +65,8 @@ func TestDownloadController(t *testing.T) {
 	})
 	defer patch1.Reset()
 	queryController := getController(extraParams, path, testDb)
+	queryControllerNotZip := getControllerNotZip(extraParams, path, testDb)
+
 	testDownloadIPError(queryController, t)
 	testDownloadPathError(queryController, t)
 	testDownloadPathOk(queryController, t)
@@ -71,7 +74,13 @@ func TestDownloadController(t *testing.T) {
 	testDownloadOsOpenErr(queryController, t)
 	testDownloadCompressErr(queryController, t)
 	testDownloadNoErr(queryController, t)
+	testDownloadNotZip(queryControllerNotZip, t)
+	testDeleteCache(queryController, t)
+	testDownloadDbErr(queryController, t)
+	testCompress(t)
+
 	os.Remove(path + "/.zip")
+	os.Remove(path + "/filename")
 }
 
 func testDownloadIPError(queryController *controllers.DownloadController, t *testing.T) {
@@ -269,10 +278,86 @@ func testDownloadNoErr(queryController *controllers.DownloadController, t *testi
 	})
 }
 
+func testDownloadDbErr(queryController *controllers.DownloadController, t *testing.T) {
+	t.Run("testDownloadDbErr", func(t *testing.T) {
+		patch6 := gomonkey.ApplyFunc(os.Open, func(_ string) (*os.File, error) {
+			return nil, nil
+		})
+		defer patch6.Reset()
+		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+			return nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(queryController), "PathCheck",
+			func(_ *controllers.DownloadController, _ string) bool {
+				return true
+			})
+		defer patch2.Reset()
+
+		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Db), "QueryTable",
+			func(_ *MockDb, _ string, _ interface{}, _ string, _ ...interface{}) (num int64, err error) {
+				return 0, errors.New("error")
+			})
+		defer patch3.Reset()
+		// Test query
+		queryController.Get()
+	})
+}
+
 func testDownloadNotZip(queryController *controllers.DownloadController, t *testing.T) {
 
-	t.Run("testDownloadIPError", func(t *testing.T) {
+	t.Run("testDownloadNotZip", func(t *testing.T) {
+		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+			return nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(queryController), "PathCheck",
+			func(_ *controllers.DownloadController, _ string) bool {
+				return true
+			})
+		defer patch2.Reset()
+
+		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Db), "QueryTable",
+			func(_ *MockDb, _ string, _ interface{}, _ string, _ ...interface{}) (num int64, err error) {
+				return 0, nil
+			})
+		defer patch3.Reset()
+
+		patch4 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Ctx.Output), "Download",
+			func(_ *context.BeegoOutput, _ string, _ ...string) {
+				return
+			})
+		defer patch4.Reset()
+
 		queryController.Get()
+	})
+}
+
+func testDeleteCache(queryController *controllers.DownloadController, t *testing.T) {
+	t.Run("testDeleteCache", func(t *testing.T) {
+		filePath := "filePath"
+		downloadName := "downloadName"
+		zipFilePath := "zipFilePath"
+		patch6 := gomonkey.ApplyFunc(os.RemoveAll, func(_ string) error {
+			return errors.New("error")
+		})
+		defer patch6.Reset()
+		// Test query
+		queryController.DeleteCache(filePath, downloadName, zipFilePath)
+	})
+}
+
+func testCompress(t *testing.T) {
+	t.Run("testCompress", func(t *testing.T) {
+		patch1 := gomonkey.ApplyFunc(os.RemoveAll, func(_ string) error {
+			return errors.New("error")
+		})
+		defer patch1.Reset()
+		var files = []*os.File{}
+		// Test query
+		controllers.Compress(files, "filename")
 	})
 }
 
@@ -284,6 +369,26 @@ func getController(extraParams map[string]string, path string, testDb dbAdpater.
 	// Prepare Input
 	queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
 	setParam(queryInput, true)
+
+	// Prepare beego controller
+	queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
+		ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+		Data: make(map[interface{}]interface{})}
+
+	// Create Upload controller with mocked DB and prepared Beego controller
+	queryController := &controllers.DownloadController{controllers.BaseController{Db: testDb,
+		Controller: queryBeegoController}}
+	return queryController
+}
+
+func getControllerNotZip(extraParams map[string]string, path string, testDb dbAdpater.Database) *controllers.DownloadController {
+	//GET Request
+	queryRequest, _ := getHttpRequest(UploadUrl+NotZipUri,
+		extraParams, "file", path, "GET", []byte(""))
+
+	// Prepare Input
+	queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
+	setParam(queryInput, false)
 
 	// Prepare beego controller
 	queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,

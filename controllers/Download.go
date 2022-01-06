@@ -58,7 +58,7 @@ func Compress(files []*os.File, dest string) error {
 	w := zip.NewWriter(d)
 	defer w.Close()
 	for _, file := range files {
-		err := compress(file, "", w)
+		err := CompressOneFile(file, "", w)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func Compress(files []*os.File, dest string) error {
 	return nil
 }
 
-func compress(file *os.File, prefix string, zw *zip.Writer) error {
+func CompressOneFile(file *os.File, prefix string, zw *zip.Writer) error {
 	info, err := file.Stat()
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func compressHelper(file *os.File, prefix string, zw *zip.Writer) error {
 		if err != nil {
 			return err
 		}
-		err = compress(f, prefix, zw)
+		err = CompressOneFile(f, prefix, zw)
 		file.Close()
 		if err != nil {
 			return err
@@ -182,21 +182,21 @@ func (d *DownloadController) Get() {
 
 func (d *DownloadController) dealWithDownload(originalName string, filePath string, downloadPath string) {
 	if d.Ctx.Input.Query("isZip") == "true" {
-		log.Info("begin to compress")
+		log.Info("begin to CompressOneFile")
 		filenameWithoutExt := strings.TrimSuffix(originalName, filepath.Ext(originalName))
 		log.Info("filenameWithoutExt:" + filenameWithoutExt)
 		zipFilePath := filePath + filenameWithoutExt
 		log.Info("zipFilePath :" + zipFilePath)
 		err := CreateDirectory(zipFilePath)
 		if err != nil {
-			log.Error("when compress, failed to create file path")
+			log.Error("when CompressOneFile, failed to create file path")
 			return
 		}
 		_, err = CopyFile(downloadPath, zipFilePath+"/"+originalName)
 		log.Info("downloadPath :" + downloadPath)
 		log.Info("copy file to " + zipFilePath + "/" + originalName)
 		if err != nil {
-			log.Error("when compress, failed to copy file")
+			log.Error("when CompressOneFile, failed to copy file")
 			return
 		}
 		f1, err := os.Open(zipFilePath)
@@ -209,30 +209,26 @@ func (d *DownloadController) dealWithDownload(originalName string, filePath stri
 		log.Info("filePath+downloadName: " + filePath + downloadName)
 		err = Compress(files, filePath+downloadName)
 		if err != nil {
-			log.Error("failed to compress upload file")
+			log.Error("failed to CompressOneFile upload file")
 			return
 		}
 		log.Info("downloadName: " + downloadName)
 		d.Ctx.Output.Download(filePath+downloadName, downloadName)
-		d.deleteCache(err, filePath, downloadName, zipFilePath)
+		d.DeleteCache(filePath, downloadName, zipFilePath)
 	} else {
 		log.Info(util.OriginalNameIs + originalName)
 		d.Ctx.Output.Download(downloadPath, originalName)
 	}
 }
 
-func (d *DownloadController) deleteCache(err error, filePath string, downloadName string, zipFilePath string) bool {
-	err = os.RemoveAll(zipFilePath)
+func (d *DownloadController) DeleteCache(filePath, downloadName, zipFilePath string) {
+	err := os.RemoveAll(zipFilePath)
 	if err != nil {
-		d.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-		return true
+		log.Error(util.FailedToDeleteCache)
 	}
 
 	err = os.Remove(filePath + downloadName)
 	if err != nil {
-		d.writeErrorResponse(util.FailedToDeleteCache, util.StatusInternalServerError)
-		return true
+		log.Error(util.FailedToDeleteCache)
 	}
-
-	return false
 }
