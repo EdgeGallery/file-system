@@ -64,7 +64,7 @@ func TestDownloadController(t *testing.T) {
 		}()
 	})
 	defer patch1.Reset()
-	queryController := getController(extraParams, path, testDb)
+	queryController := getDownController(extraParams, path, testDb)
 	queryControllerNotZip := getControllerNotZip(extraParams, path, testDb)
 
 	testDownloadIPError(queryController, t)
@@ -361,7 +361,7 @@ func testCompress(t *testing.T) {
 	})
 }
 
-func getController(extraParams map[string]string, path string, testDb dbAdpater.Database) *controllers.DownloadController {
+func getDownController(extraParams map[string]string, path string, testDb dbAdpater.Database) *controllers.DownloadController {
 	//GET Request
 	queryRequest, _ := getHttpRequest(UploadUrl+ZipUri,
 		extraParams, "file", path, "GET", []byte(""))
