@@ -413,19 +413,27 @@ func (c *SlimController) AsyCallImageOps(client *http.Client, requestIdCompress 
 	}
 
 	time.Sleep(time.Duration(5) * time.Second)
+	c.CheckResponse(requestIdCheck, imageBasicInfo, compressInfo)
+}
+
+func (c *SlimController) CheckResponse(requestIdCheck string, imageBasicInfo ImageBasicInfo, compressInfo CompressStatusResponse) {
 	//此时瘦身结束，查看Check Response详情
 	isCheckFinished := false
-	checkTimes = 720 //30 MinS
+	checkTimes := 720 //30 MinS
 
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 	for !isCheckFinished && checkTimes > 0 {
 
 		checkTimes--
 		if len(requestIdCheck) == 0 {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "after POST check to imageOps, check requestId is still empty")
+			c.writeErrorResponse("after POST check to imageOps, check requestId is still empty", util.StatusInternalServerError)
 			return
 		}
 
-		checkStatusResponse, undone := c.getToCheck(client, requestIdCheck, clientIp)
+		checkStatusResponse, undone := c.getToCheck(client, requestIdCheck)
 		if undone {
 			return
 		}
@@ -435,17 +443,16 @@ func (c *SlimController) AsyCallImageOps(client *http.Client, requestIdCompress 
 			err := c.InsertOrUpdateCheckRecordAfterCompress(imageBasicInfo, util.Slimming, checkStatusResponse, compressInfo)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 				return
 			}
 			continue
 		} else if checkStatusResponse.Status == util.CheckCompleted { //check completed
 			isCheckFinished = true
-
 			err := c.InsertOrUpdateCheckRecordAfterCompress(imageBasicInfo, util.SlimmedSuccess, checkStatusResponse, compressInfo)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 				return
 			}
 		} else {
@@ -453,7 +460,7 @@ func (c *SlimController) AsyCallImageOps(client *http.Client, requestIdCompress 
 			err := c.InsertOrUpdateCheckRecordAfterCompress(imageBasicInfo, util.SlimFailed, checkStatusResponse, compressInfo)
 			if err != nil {
 				log.Error(util.FailedToInsertDataToDB)
-				c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+				c.writeErrorResponse(util.FailToInsertRequestCheck, util.StatusInternalServerError)
 				return
 			}
 		}
@@ -463,11 +470,11 @@ func (c *SlimController) AsyCallImageOps(client *http.Client, requestIdCompress 
 	}
 }
 
-func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string, clientIp string) (CheckStatusResponse, bool) {
+func (c *SlimController) getToCheck(client *http.Client, requestIdCheck string) (CheckStatusResponse, bool) {
 	log.Info("begin to get to check imageops while slimming, requestIdCheck:" + requestIdCheck)
 	responseCheck, err := client.Get("http://localhost:5000/api/v1/vmimage/check/" + requestIdCheck)
 	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to request imageOps check")
+		c.writeErrorResponse("fail to request imageOps check", util.StatusInternalServerError)
 		return CheckStatusResponse{}, true
 	}
 	defer responseCheck.Body.Close()

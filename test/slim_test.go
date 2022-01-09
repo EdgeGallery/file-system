@@ -81,9 +81,14 @@ func TestSlimController(t *testing.T) {
 	testAsyCallCompressFailed(slimController, t, fileRecordSlimmed)
 	testAsyCallCompressNoEnoughSpace(slimController, t, fileRecordSlimmed)
 	testAsyCallCompressTimeout(slimController, t, fileRecordSlimmed)
+	testAsyCallCompressElse(slimController, t, fileRecordSlimmed)
 	testAsyCallCompressInsertError(slimController, t, fileRecordSlimmed)
-	testAsyCallImageOps(slimController, t, fileRecordSlimmed)
-
+	testAsyCallImageOpsGetCheckErr(slimController, t, fileRecordSlimmed)
+	testAsyCallImageOpsGetCheckOk(slimController, t, fileRecordSlimmed)
+	testCheckResponseInProgress(slimController, t, fileRecordSlimmed)
+	testCheckResponseCompleted(slimController, t, fileRecordSlimmed)
+	testCheckResponseElse(slimController, t, fileRecordSlimmed)
+	testCheckResponseEmptyId(slimController, t, fileRecordSlimmed)
 }
 
 func testSlimIpErr(slimController *controllers.SlimController, t *testing.T) {
@@ -303,8 +308,8 @@ func testAsyCallCompressFailed(slimController *controllers.SlimController, t *te
 		})
 		defer patch1.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
-			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ string, _ int,
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
@@ -334,8 +339,8 @@ func testAsyCallCompressNoEnoughSpace(slimController *controllers.SlimController
 		})
 		defer patch1.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
-			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ string, _ int,
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
@@ -365,8 +370,39 @@ func testAsyCallCompressTimeout(slimController *controllers.SlimController, t *t
 		})
 		defer patch1.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
-			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ string, _ int,
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
+				_ controllers.CompressStatusResponse) error {
+				return errors.New("error")
+			})
+		defer patch2.Reset()
+
+		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+	})
+}
+
+func testAsyCallCompressElse(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testAsyCallCompressElse", func(t *testing.T) {
+		// Test query
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		var responseGetBodyMap map[string]interface{}
+		responseGetBodyMap = make(map[string]interface{})
+		responseGetBodyMap["status"] = 10
+		responseGetBodyMap["msg"] = "error status"
+		responseGetBodyMap["rate"] = 0
+		responseGetJson, _ := json.Marshal(responseGetBodyMap)
+		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
+
+		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+			return &http.Response{Body: responseGetBody}, nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
@@ -407,8 +443,32 @@ func testAsyCallCompressInsertError(slimController *controllers.SlimController, 
 	})
 }
 
-func testAsyCallImageOps(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
-	t.Run("testAsyCallImageOps", func(t *testing.T) {
+func testAsyCallImageOpsGetCheckErr(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testAsyCallImageOpsGetCheckErr", func(t *testing.T) {
+		// Test query
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+		var responseGetBodyMap map[string]interface{}
+		responseGetBodyMap = make(map[string]interface{})
+		responseGetBodyMap["status"] = 0
+		responseGetBodyMap["msg"] = "compress completed"
+		responseGetBodyMap["rate"] = 1
+		responseGetJson, _ := json.Marshal(responseGetBodyMap)
+		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
+
+		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+			return &http.Response{Body: responseGetBody}, nil
+		})
+		defer patch1.Reset()
+
+		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+	})
+}
+
+func testAsyCallImageOpsGetCheckOk(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testAsyCallImageOpsGetCheckOk", func(t *testing.T) {
 		// Test query
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -430,7 +490,7 @@ func testAsyCallImageOps(slimController *controllers.SlimController, t *testing.
 		var responsePostBodyMap map[string]interface{}
 		responsePostBodyMap = make(map[string]interface{})
 		responsePostBodyMap["status"] = 0
-		responsePostBodyMap["msg"] = "Compress In Progress"
+		responsePostBodyMap["msg"] = "Check In Progress"
 		responsePostBodyMap["requestId"] = requestId
 		responsePostJson, _ := json.Marshal(responsePostBodyMap)
 		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
@@ -442,6 +502,148 @@ func testAsyCallImageOps(slimController *controllers.SlimController, t *testing.
 		defer patch3.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+	})
+}
+
+func testCheckResponseInProgress(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testCheckResponseInProgress", func(t *testing.T) {
+		// Test query
+		var checkInfo controllers.CheckInfo
+		checkInfo.Checksum = "111"
+		checkInfo.CheckResult = 0
+		var responseGetMap map[string]interface{}
+		responseGetMap = make(map[string]interface{})
+		responseGetMap["status"] = 4
+		responseGetMap["msg"] = "check in progress"
+		responseGetMap["checkInfo"] = checkInfo
+		responseGetMapJson, _ := json.Marshal(responseGetMap)
+		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
+
+		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+			return &http.Response{Body: responseGetMapBody}, nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ controllers.CheckStatusResponse,
+				_ controllers.CompressStatusResponse) error {
+				return errors.New("error")
+			})
+		defer patch2.Reset()
+		var imageBasicInfo controllers.ImageBasicInfo
+		imageBasicInfo.ImageId = imageId
+		imageBasicInfo.StorageMedium = storageMedium
+		imageBasicInfo.SaveFileName = saveFileName
+		imageBasicInfo.UserId = UserId
+		imageBasicInfo.FileName = saveFileName
+
+		var compressInfo controllers.CompressStatusResponse
+		compressInfo.Status = 0
+		compressInfo.Msg = "compress completed"
+		compressInfo.Rate = 1
+
+		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
+	})
+}
+
+func testCheckResponseCompleted(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
+		// Test query
+		var checkInfo controllers.CheckInfo
+		checkInfo.Checksum = "111"
+		checkInfo.CheckResult = 0
+		var responseGetMap map[string]interface{}
+		responseGetMap = make(map[string]interface{})
+		responseGetMap["status"] = 0
+		responseGetMap["msg"] = "check completed"
+		responseGetMap["checkInfo"] = checkInfo
+		responseGetMapJson, _ := json.Marshal(responseGetMap)
+		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
+
+		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+			return &http.Response{Body: responseGetMapBody}, nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ controllers.CheckStatusResponse,
+				_ controllers.CompressStatusResponse) error {
+				return errors.New("error")
+			})
+		defer patch2.Reset()
+		var imageBasicInfo controllers.ImageBasicInfo
+		imageBasicInfo.ImageId = imageId
+		imageBasicInfo.StorageMedium = storageMedium
+		imageBasicInfo.SaveFileName = saveFileName
+		imageBasicInfo.UserId = UserId
+		imageBasicInfo.FileName = saveFileName
+
+		var compressInfo controllers.CompressStatusResponse
+		compressInfo.Status = 0
+		compressInfo.Msg = "compress completed"
+		compressInfo.Rate = 1
+
+		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
+	})
+}
+
+func testCheckResponseElse(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
+		// Test query
+		var checkInfo controllers.CheckInfo
+		checkInfo.Checksum = "111"
+		checkInfo.CheckResult = 0
+		var responseGetMap map[string]interface{}
+		responseGetMap = make(map[string]interface{})
+		responseGetMap["status"] = 3
+		responseGetMap["msg"] = "check else status"
+		responseGetMap["checkInfo"] = checkInfo
+		responseGetMapJson, _ := json.Marshal(responseGetMap)
+		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
+
+		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+			return &http.Response{Body: responseGetMapBody}, nil
+		})
+		defer patch1.Reset()
+
+		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckRecordAfterCompress",
+			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ controllers.CheckStatusResponse,
+				_ controllers.CompressStatusResponse) error {
+				return errors.New("error")
+			})
+		defer patch2.Reset()
+		var imageBasicInfo controllers.ImageBasicInfo
+		imageBasicInfo.ImageId = imageId
+		imageBasicInfo.StorageMedium = storageMedium
+		imageBasicInfo.SaveFileName = saveFileName
+		imageBasicInfo.UserId = UserId
+		imageBasicInfo.FileName = saveFileName
+
+		var compressInfo controllers.CompressStatusResponse
+		compressInfo.Status = 0
+		compressInfo.Msg = "compress completed"
+		compressInfo.Rate = 1
+
+		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
+	})
+}
+
+func testCheckResponseEmptyId(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
+		// Test query
+		var imageBasicInfo controllers.ImageBasicInfo
+		imageBasicInfo.ImageId = imageId
+		imageBasicInfo.StorageMedium = storageMedium
+		imageBasicInfo.SaveFileName = saveFileName
+		imageBasicInfo.UserId = UserId
+		imageBasicInfo.FileName = saveFileName
+
+		var compressInfo controllers.CompressStatusResponse
+		compressInfo.Status = 0
+		compressInfo.Msg = "compress completed"
+		compressInfo.Rate = 1
+
+		slimController.CheckResponse("", imageBasicInfo, compressInfo)
 	})
 }
 
