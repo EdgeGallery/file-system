@@ -37,7 +37,8 @@ func TestMergeGet(t *testing.T) {
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 }
 
-/*func TestMergePost(t *testing.T) {
+/*
+func TestMergePost(t *testing.T) {
 
 	c := getMergeChunkController()
 
@@ -94,8 +95,8 @@ func TestMergeGet(t *testing.T) {
 	assert.Equal(t, 0, c.Ctx.ResponseWriter.Status, "Merge post request result received.")
 	_ = c.Ctx.ResponseWriter.ResponseWriter.(*httptest.ResponseRecorder)
 
-	mactchPath,_ := filepath.Glob(path+"*mock.qcow2")
-	for _,v := range mactchPath{
+	mactchPath, _ := filepath.Glob(path + "*mock.qcow2")
+	for _, v := range mactchPath {
 		_ = os.Remove(v)
 	}
 }*/

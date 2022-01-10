@@ -85,10 +85,10 @@ func TestSlimController(t *testing.T) {
 	testAsyCallCompressInsertError(slimController, t, fileRecordSlimmed)
 	testAsyCallImageOpsGetCheckErr(slimController, t, fileRecordSlimmed)
 	testAsyCallImageOpsGetCheckOk(slimController, t, fileRecordSlimmed)
-	testCheckResponseInProgress(slimController, t, fileRecordSlimmed)
-	testCheckResponseCompleted(slimController, t, fileRecordSlimmed)
-	testCheckResponseElse(slimController, t, fileRecordSlimmed)
-	testCheckResponseEmptyId(slimController, t, fileRecordSlimmed)
+	testCheckResponseInProgress(slimController, t)
+	testCheckResponseCompleted(slimController, t)
+	testCheckResponseElse(slimController, t)
+	testCheckResponseEmptyId(slimController, t)
 }
 
 func testSlimIpErr(slimController *controllers.SlimController, t *testing.T) {
@@ -505,7 +505,7 @@ func testAsyCallImageOpsGetCheckOk(slimController *controllers.SlimController, t
 	})
 }
 
-func testCheckResponseInProgress(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+func testCheckResponseInProgress(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseInProgress", func(t *testing.T) {
 		// Test query
 		var checkInfo controllers.CheckInfo
@@ -546,7 +546,7 @@ func testCheckResponseInProgress(slimController *controllers.SlimController, t *
 	})
 }
 
-func testCheckResponseCompleted(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+func testCheckResponseCompleted(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
 		// Test query
 		var checkInfo controllers.CheckInfo
@@ -587,7 +587,7 @@ func testCheckResponseCompleted(slimController *controllers.SlimController, t *t
 	})
 }
 
-func testCheckResponseElse(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+func testCheckResponseElse(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
 		// Test query
 		var checkInfo controllers.CheckInfo
@@ -628,7 +628,7 @@ func testCheckResponseElse(slimController *controllers.SlimController, t *testin
 	})
 }
 
-func testCheckResponseEmptyId(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
+func testCheckResponseEmptyId(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
 		// Test query
 		var imageBasicInfo controllers.ImageBasicInfo

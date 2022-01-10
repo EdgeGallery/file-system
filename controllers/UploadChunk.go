@@ -29,7 +29,7 @@ type UploadChunkController struct {
 }
 
 //add more storage logic here
-func (c *UploadChunkController) getStorageMedium(priority string) string {
+func (c *UploadChunkController) GetStorageMedium(priority string) string {
 	switch {
 	case priority == "A":
 		return "huaweiCloud"
@@ -58,7 +58,7 @@ func (c *UploadChunkController) Get() {
 // @Param   priority        string      true   "priority "
 // @Param   saveFilename 	string  	true   "file"         eg.1.part
 // @Param   identifier 	    string  	true   "file"         eg. xxxxxxxxxxxxx
-func (c *UploadChunkController) saveByIdentifier(priority string, saveFilename string, identifier string) error {
+func (c *UploadChunkController) SaveByIdentifier(priority string, saveFilename string, identifier string) error {
 	switch {
 	case priority == "A":
 		return errors.New("sorry, this storage medium is not supported right now")
@@ -115,7 +115,7 @@ func (c *UploadChunkController) Post() {
 	priority := c.GetString(util.Priority)
 
 	//use identifier to create saving path
-	err = c.saveByIdentifier(priority, head.Filename, identifier)
+	err = c.SaveByIdentifier(priority, head.Filename, identifier)
 	if err != nil {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to save chunk file part")
 		return
@@ -144,7 +144,7 @@ func (c *UploadChunkController) Delete() {
 	priority := c.GetString(util.Priority)
 	identifier := c.GetString(util.Identifier)
 
-	storageMedium := c.getStorageMedium(priority)
+	storageMedium := c.GetStorageMedium(priority)
 
 	saveFilePath := storageMedium + identifier + "/"
 
