@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fileSystem/controllers"
-	"fileSystem/models"
 	"fileSystem/pkg/dbAdpater"
 	"fileSystem/util"
 	"github.com/agiledragon/gomonkey"
@@ -55,23 +54,7 @@ var (
 )
 
 func TestControllerSuccess(t *testing.T) {
-
-	// Common steps
-	// Setting file path
-	// return filesystem/test的目录地址
-	path, _ := os.Getwd()
-	path += "/mockImage.qcow2"
-
-	// Setting extra parameters
-	extraParams := map[string]string{
-		UserIdKey:   UserId,
-		PriorityKey: Priority,
-	}
-
-	testDb := &MockDb{
-		imageRecords: models.ImageDB{},
-	}
-
+	path, extraParams, testDb := prepareTest()
 	var c *beego.Controller
 	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
 		go func() {
@@ -79,10 +62,9 @@ func TestControllerSuccess(t *testing.T) {
 		}()
 	})
 	defer patch1.Reset()
-
+	path += "/mockImage.qcow2"
 	testUploadPostValidateSrcAddressErr(t, extraParams, path, testDb)
 	testUploadPostValidateSrcAddress(t, extraParams, path, testDb)
-
 	testUploadPostImageOpsPostGetOk(t, extraParams, path, testDb)
 }
 

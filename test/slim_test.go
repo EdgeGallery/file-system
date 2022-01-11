@@ -32,23 +32,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestSlimController(t *testing.T) {
-	// Common steps
-	// Setting file path
-	// return filesystem/test的目录地址
-	path, _ := os.Getwd()
-
-	// Setting extra parameters
-	extraParams := map[string]string{
-		UserIdKey:   UserId,
-		PriorityKey: Priority,
-	}
-
 	fileRecordSlimmed := models.ImageDB{
 		ImageId:       imageId,
 		FileName:      util.FileName,
@@ -57,10 +45,7 @@ func TestSlimController(t *testing.T) {
 		StorageMedium: storageMedium,
 		SlimStatus:    2,
 	}
-	testDb := &MockDb{
-		imageRecords: fileRecordSlimmed,
-	}
-
+	path, extraParams, testDb := prepareTest()
 	var c *beego.Controller
 	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
 		go func() {
@@ -68,7 +53,6 @@ func TestSlimController(t *testing.T) {
 		}()
 	})
 	defer patch1.Reset()
-
 	slimController := getSlimController(extraParams, path, testDb)
 	testSlimIpErr(slimController, t)
 	testSlimCompressPostErr(slimController, t)
