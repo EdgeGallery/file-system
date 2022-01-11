@@ -36,6 +36,11 @@ import (
 	"testing"
 )
 
+var (
+	compressInProgress = "Compress In Progress"
+	LocalIp            = "127.0.0.1"
+)
+
 func TestSlimController(t *testing.T) {
 	fileRecordSlimmed := models.ImageDB{
 		ImageId:       imageId,
@@ -68,7 +73,6 @@ func TestSlimController(t *testing.T) {
 	testAsyCallCompressElse(slimController, t, fileRecordSlimmed)
 	testAsyCallCompressInsertError(slimController, t, fileRecordSlimmed)
 	testAsyCallImageOpsGetCheckErr(slimController, t, fileRecordSlimmed)
-	testAsyCallImageOpsGetCheckOk(slimController, t, fileRecordSlimmed)
 	testCheckResponseInProgress(slimController, t)
 	testCheckResponseCompleted(slimController, t)
 	testCheckResponseElse(slimController, t)
@@ -111,7 +115,7 @@ func testSlimInProgress(slimController *controllers.SlimController, t *testing.T
 				return true
 			})
 		defer patch2.Reset()
-		responsePostBody := getResponsePostBody(0, "Compress In Progress")
+		responsePostBody := getResponsePostBody(0, compressInProgress)
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -176,7 +180,7 @@ func testAsyCallImageOpsGetCompressErr(slimController *controllers.SlimControlle
 		}
 		client := &http.Client{Transport: tr}
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -192,14 +196,14 @@ func testAsyCallCompressCompleted(slimController *controllers.SlimController, t 
 			return &http.Response{Body: responseGetBody}, nil
 		})
 		defer patch1.Reset()
-		responsePostBody := getResponsePostBody(0, "Compress In Progress")
+		responsePostBody := getResponsePostBody(0, compressInProgress)
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
 		})
 		defer patch3.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -221,7 +225,7 @@ func testAsyCallCompressInProgress(slimController *controllers.SlimController, t
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		responseGetBody := getResponseGetBody(1, "compress in progress", 0.5)
+		responseGetBody := getResponseGetBody(1, compressInProgress, 0.5)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -234,7 +238,7 @@ func testAsyCallCompressInProgress(slimController *controllers.SlimController, t
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -258,7 +262,7 @@ func testAsyCallCompressFailed(slimController *controllers.SlimController, t *te
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -282,7 +286,7 @@ func testAsyCallCompressNoEnoughSpace(slimController *controllers.SlimController
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -306,7 +310,7 @@ func testAsyCallCompressTimeout(slimController *controllers.SlimController, t *t
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -330,7 +334,7 @@ func testAsyCallCompressElse(slimController *controllers.SlimController, t *test
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -354,7 +358,7 @@ func testAsyCallCompressInsertError(slimController *controllers.SlimController, 
 			})
 		defer patch2.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
@@ -371,30 +375,7 @@ func testAsyCallImageOpsGetCheckErr(slimController *controllers.SlimController, 
 		})
 		defer patch1.Reset()
 
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
-	})
-}
-
-func testAsyCallImageOpsGetCheckOk(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
-	t.Run("testAsyCallImageOpsGetCheckOk", func(t *testing.T) {
-		// Test query
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		responseGetBody := getResponseGetBody(0, "compress completed", 1)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
-			return &http.Response{Body: responseGetBody}, nil
-		})
-		defer patch1.Reset()
-		responsePostBody := getResponsePostBody(0, "Compress In Progress")
-		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
-			url, contentType string, body io.Reader) (resp *http.Response, err error) {
-			return &http.Response{Body: responsePostBody}, nil
-		})
-		defer patch3.Reset()
-
-		slimController.AsyCallImageOps(client, requestId, "127.0.0.1", imageFileDb, imageId)
+		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
 }
 
