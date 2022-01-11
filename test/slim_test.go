@@ -84,16 +84,17 @@ func testSlimIpErr(slimController *controllers.SlimController, t *testing.T) {
 
 func testSlimCompressPostErr(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testSlimCompressPostErr", func(t *testing.T) {
-		// Test query
-		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
-			return nil
-		})
-		defer patch1.Reset()
 		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "PathCheck",
 			func(_ *controllers.SlimController, _ string) bool {
 				return true
 			})
 		defer patch2.Reset()
+
+		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+			return nil
+		})
+		defer patch1.Reset()
+
 		slimController.Post()
 	})
 }
@@ -110,15 +111,7 @@ func testSlimInProgress(slimController *controllers.SlimController, t *testing.T
 				return true
 			})
 		defer patch2.Reset()
-
-		var responsePostBodyMap map[string]interface{}
-		responsePostBodyMap = make(map[string]interface{})
-		responsePostBodyMap["status"] = 0
-		responsePostBodyMap["msg"] = "Compress In Progress"
-		responsePostBodyMap["requestId"] = requestId
-		responsePostJson, _ := json.Marshal(responsePostBodyMap)
-		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
-
+		responsePostBody := getResponsePostBody(0, "Compress In Progress")
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -141,15 +134,7 @@ func testSlimCompressFailed(slimController *controllers.SlimController, t *testi
 				return true
 			})
 		defer patch2.Reset()
-
-		var responsePostBodyMap map[string]interface{}
-		responsePostBodyMap = make(map[string]interface{})
-		responsePostBodyMap["status"] = 1
-		responsePostBodyMap["msg"] = "Compress Failed"
-		responsePostBodyMap["requestId"] = requestId
-		responsePostJson, _ := json.Marshal(responsePostBodyMap)
-		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
-
+		responsePostBody := getResponsePostBody(1, "Compress Failed")
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -172,15 +157,7 @@ func testSlimCompressElse(slimController *controllers.SlimController, t *testing
 				return true
 			})
 		defer patch2.Reset()
-
-		var responsePostBodyMap map[string]interface{}
-		responsePostBodyMap = make(map[string]interface{})
-		responsePostBodyMap["status"] = 3
-		responsePostBodyMap["msg"] = "Compress Internal error"
-		responsePostBodyMap["requestId"] = requestId
-		responsePostJson, _ := json.Marshal(responsePostBodyMap)
-		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
-
+		responsePostBody := getResponsePostBody(3, "Compress Internal error")
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -210,27 +187,12 @@ func testAsyCallCompressCompleted(slimController *controllers.SlimController, t 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 0
-		responseGetBodyMap["msg"] = "compress completed"
-		responseGetBodyMap["rate"] = 1
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(0, "compress completed", 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
 		defer patch1.Reset()
-
-		var responsePostBodyMap map[string]interface{}
-		responsePostBodyMap = make(map[string]interface{})
-		responsePostBodyMap["status"] = 0
-		responsePostBodyMap["msg"] = "Compress In Progress"
-		responsePostBodyMap["requestId"] = requestId
-		responsePostJson, _ := json.Marshal(responsePostBodyMap)
-		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
-
+		responsePostBody := getResponsePostBody(0, "Compress In Progress")
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -241,6 +203,17 @@ func testAsyCallCompressCompleted(slimController *controllers.SlimController, t 
 	})
 }
 
+func getResponseGetBody(status int, msg string, rate float32) io.ReadCloser {
+	var responseGetBodyMap map[string]interface{}
+	responseGetBodyMap = make(map[string]interface{})
+	responseGetBodyMap["status"] = status
+	responseGetBodyMap["msg"] = msg
+	responseGetBodyMap["rate"] = rate
+	responseGetJson, _ := json.Marshal(responseGetBodyMap)
+	responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
+	return responseGetBody
+}
+
 func testAsyCallCompressInProgress(slimController *controllers.SlimController, t *testing.T, imageFileDb models.ImageDB) {
 	t.Run("testAsyCallCompressInProgress", func(t *testing.T) {
 		// Test query
@@ -248,14 +221,7 @@ func testAsyCallCompressInProgress(slimController *controllers.SlimController, t
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 1
-		responseGetBodyMap["msg"] = "compress in progress"
-		responseGetBodyMap["rate"] = 0.5
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(1, "compress in progress", 0.5)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -279,14 +245,7 @@ func testAsyCallCompressFailed(slimController *controllers.SlimController, t *te
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 2
-		responseGetBodyMap["msg"] = "compress failed"
-		responseGetBodyMap["rate"] = 0
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(2, "compress failed", 0)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -310,14 +269,7 @@ func testAsyCallCompressNoEnoughSpace(slimController *controllers.SlimController
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 3
-		responseGetBodyMap["msg"] = "compress NoEnoughSpace"
-		responseGetBodyMap["rate"] = 0
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(3, "compress NoEnoughSpace", 0)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -341,14 +293,7 @@ func testAsyCallCompressTimeout(slimController *controllers.SlimController, t *t
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 4
-		responseGetBodyMap["msg"] = "compress Timeout"
-		responseGetBodyMap["rate"] = 0
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(4, "compress Timeout", 0)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -372,14 +317,7 @@ func testAsyCallCompressElse(slimController *controllers.SlimController, t *test
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 10
-		responseGetBodyMap["msg"] = "error status"
-		responseGetBodyMap["rate"] = 0
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(10, "error status", 0)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -403,14 +341,7 @@ func testAsyCallCompressInsertError(slimController *controllers.SlimController, 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 0
-		responseGetBodyMap["msg"] = "compress success"
-		responseGetBodyMap["rate"] = 1
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(0, "compress success", 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -434,14 +365,7 @@ func testAsyCallImageOpsGetCheckErr(slimController *controllers.SlimController, 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 0
-		responseGetBodyMap["msg"] = "compress completed"
-		responseGetBodyMap["rate"] = 1
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(0, "compress completed", 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -458,27 +382,12 @@ func testAsyCallImageOpsGetCheckOk(slimController *controllers.SlimController, t
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		var responseGetBodyMap map[string]interface{}
-		responseGetBodyMap = make(map[string]interface{})
-		responseGetBodyMap["status"] = 0
-		responseGetBodyMap["msg"] = "compress completed"
-		responseGetBodyMap["rate"] = 1
-		responseGetJson, _ := json.Marshal(responseGetBodyMap)
-		responseGetBody := ioutil.NopCloser(bytes.NewReader(responseGetJson))
-
+		responseGetBody := getResponseGetBody(0, "compress completed", 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
 		defer patch1.Reset()
-
-		var responsePostBodyMap map[string]interface{}
-		responsePostBodyMap = make(map[string]interface{})
-		responsePostBodyMap["status"] = 0
-		responsePostBodyMap["msg"] = "Check In Progress"
-		responsePostBodyMap["requestId"] = requestId
-		responsePostJson, _ := json.Marshal(responsePostBodyMap)
-		responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
-
+		responsePostBody := getResponsePostBody(0, "Compress In Progress")
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Post", func(client *http.Client,
 			url, contentType string, body io.Reader) (resp *http.Response, err error) {
 			return &http.Response{Body: responsePostBody}, nil
@@ -492,16 +401,7 @@ func testAsyCallImageOpsGetCheckOk(slimController *controllers.SlimController, t
 func testCheckResponseInProgress(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseInProgress", func(t *testing.T) {
 		// Test query
-		var checkInfo controllers.CheckInfo
-		checkInfo.Checksum = "111"
-		checkInfo.CheckResult = 0
-		var responseGetMap map[string]interface{}
-		responseGetMap = make(map[string]interface{})
-		responseGetMap["status"] = 4
-		responseGetMap["msg"] = "check in progress"
-		responseGetMap["checkInfo"] = checkInfo
-		responseGetMapJson, _ := json.Marshal(responseGetMap)
-		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
+		responseGetMapBody := getResponseGetMapBody(4, "check in progress")
 
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetMapBody}, nil
@@ -530,20 +430,24 @@ func testCheckResponseInProgress(slimController *controllers.SlimController, t *
 	})
 }
 
+func getResponseGetMapBody(status int, msg string) io.ReadCloser {
+	var checkInfo controllers.CheckInfo
+	checkInfo.Checksum = "111"
+	checkInfo.CheckResult = 0
+	var responseGetMap map[string]interface{}
+	responseGetMap = make(map[string]interface{})
+	responseGetMap["status"] = status
+	responseGetMap["msg"] = msg
+	responseGetMap["checkInfo"] = checkInfo
+	responseGetMapJson, _ := json.Marshal(responseGetMap)
+	responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
+	return responseGetMapBody
+}
+
 func testCheckResponseCompleted(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
 		// Test query
-		var checkInfo controllers.CheckInfo
-		checkInfo.Checksum = "111"
-		checkInfo.CheckResult = 0
-		var responseGetMap map[string]interface{}
-		responseGetMap = make(map[string]interface{})
-		responseGetMap["status"] = 0
-		responseGetMap["msg"] = "check completed"
-		responseGetMap["checkInfo"] = checkInfo
-		responseGetMapJson, _ := json.Marshal(responseGetMap)
-		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
-
+		responseGetMapBody := getResponseGetMapBody(0, "check completed")
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetMapBody}, nil
 		})
@@ -574,17 +478,7 @@ func testCheckResponseCompleted(slimController *controllers.SlimController, t *t
 func testCheckResponseElse(slimController *controllers.SlimController, t *testing.T) {
 	t.Run("testCheckResponseEmptyId", func(t *testing.T) {
 		// Test query
-		var checkInfo controllers.CheckInfo
-		checkInfo.Checksum = "111"
-		checkInfo.CheckResult = 0
-		var responseGetMap map[string]interface{}
-		responseGetMap = make(map[string]interface{})
-		responseGetMap["status"] = 3
-		responseGetMap["msg"] = "check else status"
-		responseGetMap["checkInfo"] = checkInfo
-		responseGetMapJson, _ := json.Marshal(responseGetMap)
-		responseGetMapBody := ioutil.NopCloser(bytes.NewReader(responseGetMapJson))
-
+		responseGetMapBody := getResponseGetMapBody(3, "check else status")
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetMapBody}, nil
 		})
@@ -649,4 +543,15 @@ func getSlimController(extraParams map[string]string, path string, testDb dbAdpa
 	queryController := &controllers.SlimController{controllers.BaseController{Db: testDb,
 		Controller: queryBeegoController}}
 	return queryController
+}
+
+func getResponsePostBody(status int, msg string) io.ReadCloser {
+	var responsePostBodyMap map[string]interface{}
+	responsePostBodyMap = make(map[string]interface{})
+	responsePostBodyMap["status"] = status
+	responsePostBodyMap["msg"] = msg
+	responsePostBodyMap["requestId"] = requestId
+	responsePostJson, _ := json.Marshal(responsePostBodyMap)
+	responsePostBody := ioutil.NopCloser(bytes.NewReader(responsePostJson))
+	return responsePostBody
 }
