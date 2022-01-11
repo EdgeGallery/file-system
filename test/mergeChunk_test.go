@@ -37,6 +37,25 @@ import (
 )
 
 func TestMergeChunkController(t *testing.T) {
+	path, extraParams, testDb := prepareTest()
+	var c *beego.Controller
+	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
+		go func() {
+			// do nothing
+		}()
+	})
+	defer patch1.Reset()
+	mergeChunkController := getMergeChunkController(extraParams, path, testDb)
+	testGetMerge(mergeChunkController, t)
+	testMergePostPathErr(mergeChunkController, t)
+	testMergePostExtensionErr(mergeChunkController, t)
+	testMergePost(mergeChunkController, t)
+	testMergePostOpenErr(mergeChunkController, t)
+	testMergePostIoReadErr(mergeChunkController, t)
+	testMergePostNoErr(mergeChunkController, t)
+}
+
+func prepareTest() (string, map[string]string, *MockDb) {
 	// Common steps
 	// Setting file path
 	// return filesystem/test的目录地址
@@ -59,23 +78,7 @@ func TestMergeChunkController(t *testing.T) {
 	testDb := &MockDb{
 		imageRecords: fileRecordSlimmed,
 	}
-
-	var c *beego.Controller
-	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
-		go func() {
-			// do nothing
-		}()
-	})
-	defer patch1.Reset()
-
-	mergeChunkController := getMergeChunkController(extraParams, path, testDb)
-	testGetMerge(mergeChunkController, t)
-	testMergePostPathErr(mergeChunkController, t)
-	testMergePostExtensionErr(mergeChunkController, t)
-	testMergePost(mergeChunkController, t)
-	testMergePostOpenErr(mergeChunkController, t)
-	testMergePostIoReadErr(mergeChunkController, t)
-	testMergePostNoErr(mergeChunkController, t)
+	return path, extraParams, testDb
 }
 
 func testGetMerge(mergeChunkController *controllers.MergeChunkController, t *testing.T) {

@@ -17,32 +17,16 @@
 package test
 
 import (
-	"fileSystem/models"
 	"github.com/agiledragon/gomonkey"
 	"github.com/astaxie/beego"
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestControllerZipSuccess(t *testing.T) {
 
-	// Common steps
-	// Setting file path
-	// return filesystem/test的目录地址
-	path, _ := os.Getwd()
+	path, extraParams, testDb := prepareTest()
 	path += "/mockImage.zip"
-
-	// Setting extra parameters
-	extraParams := map[string]string{
-		UserIdKey:   UserId,
-		PriorityKey: Priority,
-	}
-
-	testDb := &MockDb{
-		imageRecords: models.ImageDB{},
-	}
-
 	var c *beego.Controller
 	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
 		go func() {

@@ -19,7 +19,6 @@ package test
 import (
 	"errors"
 	"fileSystem/controllers"
-	"fileSystem/models"
 	"fileSystem/pkg/dbAdpater"
 	"fileSystem/util"
 	"github.com/agiledragon/gomonkey"
@@ -32,31 +31,7 @@ import (
 )
 
 func TestDownloadController(t *testing.T) {
-
-	// Common steps
-	// Setting file path
-	// return filesystem/test的目录地址
-	path, _ := os.Getwd()
-
-	// Setting extra parameters
-	extraParams := map[string]string{
-		UserIdKey:   UserId,
-		PriorityKey: Priority,
-	}
-
-	fileRecord := models.ImageDB{
-		ImageId:       imageId,
-		FileName:      util.FileName,
-		UserId:        UserId,
-		SaveFileName:  saveFileName,
-		StorageMedium: storageMedium,
-		SlimStatus:    2,
-	}
-
-	testDb := &MockDb{
-		imageRecords: fileRecord,
-	}
-
+	path, extraParams, testDb := prepareTest()
 	var c *beego.Controller
 	patch1 := gomonkey.ApplyMethod(reflect.TypeOf(c), "ServeJSON", func(*beego.Controller, ...bool) {
 		go func() {
