@@ -28,7 +28,6 @@ import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -152,7 +151,7 @@ func testMergePostIoReadErr(mergeChunkController *controllers.MergeChunkControll
 		})
 		defer patch2.Reset()
 
-		patch3 := gomonkey.ApplyFunc(ioutil.ReadDir, func(_ string) ([]fs.FileInfo, error) {
+		patch3 := gomonkey.ApplyFunc(ioutil.ReadDir, func(_ string) ([]os.FileInfo, error) {
 			return nil, errors.New("error")
 		})
 		defer patch3.Reset()
@@ -172,7 +171,7 @@ func testMergePostNoErr(mergeChunkController *controllers.MergeChunkController, 
 		})
 		defer patch2.Reset()
 
-		patch3 := gomonkey.ApplyFunc(ioutil.ReadDir, func(_ string) ([]fs.FileInfo, error) {
+		patch3 := gomonkey.ApplyFunc(ioutil.ReadDir, func(_ string) ([]os.FileInfo, error) {
 			return nil, nil
 		})
 		defer patch3.Reset()
