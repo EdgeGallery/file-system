@@ -227,10 +227,10 @@ func testAsyCallCompressInProgress(slimController *controllers.SlimController, t
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(1, compressInProgress, 0.5)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch5 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch5.Reset()
 
 		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ string, _ int,
@@ -251,17 +251,17 @@ func testAsyCallCompressFailed(slimController *controllers.SlimController, t *te
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(2, "compress failed", 0)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch4 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch4.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+		patch6 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
-		defer patch2.Reset()
+		defer patch6.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
@@ -275,17 +275,17 @@ func testAsyCallCompressNoEnoughSpace(slimController *controllers.SlimController
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(3, "compress NoEnoughSpace", 0)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch11 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch11.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+		patch22 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
-		defer patch2.Reset()
+		defer patch22.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
@@ -299,10 +299,10 @@ func testAsyCallCompressTimeout(slimController *controllers.SlimController, t *t
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(4, "compress Timeout", 0)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch8 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch8.Reset()
 
 		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
@@ -323,17 +323,17 @@ func testAsyCallCompressElse(slimController *controllers.SlimController, t *test
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(10, "error status", 0)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch12 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch12.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
+		patch32 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckPostRecordAfterCompress",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ string,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
-		defer patch2.Reset()
+		defer patch32.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
@@ -347,17 +347,17 @@ func testAsyCallCompressInsertError(slimController *controllers.SlimController, 
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(0, "compress success", 1)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch9 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch9.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
+		patch0 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCompressGetRecord",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ string, _ int,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
-		defer patch2.Reset()
+		defer patch0.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
@@ -371,10 +371,10 @@ func testAsyCallImageOpsGetCheckErr(slimController *controllers.SlimController, 
 		}
 		client := &http.Client{Transport: tr}
 		responseGetBody := getResponseGetBody(0, compressCompleted, 1)
-		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
+		patch10 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
-		defer patch1.Reset()
+		defer patch10.Reset()
 
 		slimController.AsyCallImageOps(client, requestId, LocalIp, imageFileDb, imageId)
 	})
@@ -390,12 +390,12 @@ func testCheckResponseInProgress(slimController *controllers.SlimController, t *
 		})
 		defer patch1.Reset()
 
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckRecordAfterCompress",
+		patch12 := gomonkey.ApplyMethod(reflect.TypeOf(slimController), "InsertOrUpdateCheckRecordAfterCompress",
 			func(_ *controllers.SlimController, _ controllers.ImageBasicInfo, _ int, _ controllers.CheckStatusResponse,
 				_ controllers.CompressStatusResponse) error {
 				return errors.New("error")
 			})
-		defer patch2.Reset()
+		defer patch12.Reset()
 		var imageBasicInfo controllers.ImageBasicInfo
 		imageBasicInfo.ImageId = imageId
 		imageBasicInfo.StorageMedium = storageMedium
