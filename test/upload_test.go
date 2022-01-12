@@ -72,21 +72,7 @@ func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]st
 
 	t.Run("testUploadPost", func(t *testing.T) {
 		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl,
-			extraParams, "file", path, "POST", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, false)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
+		queryController := getQueryController(extraParams, path, testDb)
 
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return err
@@ -99,25 +85,29 @@ func testUploadPostValidateSrcAddressErr(t *testing.T, extraParams map[string]st
 	})
 }
 
+func getQueryController(extraParams map[string]string, path string, testDb dbAdpater.Database) *controllers.UploadController {
+	queryRequest, _ := getHttpRequest(UploadUrl,
+		extraParams, "file", path, "POST", []byte(""))
+
+	// Prepare Input
+	queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
+	setParam(queryInput, false)
+
+	// Prepare beego controller
+	queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
+		ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
+		Data: make(map[interface{}]interface{})}
+
+	// Create Upload controller with mocked DB and prepared Beego controller
+	queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
+		Controller: queryBeegoController}}
+	return queryController
+}
+
 func testUploadPostValidateSrcAddress(t *testing.T, extraParams map[string]string, path string, testDb dbAdpater.Database) {
 
 	t.Run("testUploadPost", func(t *testing.T) {
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl, extraParams, "file", path, "POST", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, false)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
+		queryController := getQueryController(extraParams, path, testDb)
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
@@ -133,22 +123,7 @@ func testUploadPostImageOpsPostGetOk(t *testing.T, extraParams map[string]string
 
 	t.Run("testUploadPost", func(t *testing.T) {
 
-		//GET Request
-		queryRequest, _ := getHttpRequest(UploadUrl, extraParams, "file", path, "POST", []byte(""))
-
-		// Prepare Input
-		queryInput := &context.BeegoInput{Context: &context.Context{Request: queryRequest}}
-		setParam(queryInput, false)
-
-		// Prepare beego controller
-		queryBeegoController := beego.Controller{Ctx: &context.Context{Input: queryInput, Request: queryRequest,
-			ResponseWriter: &context.Response{ResponseWriter: httptest.NewRecorder()}},
-			Data: make(map[interface{}]interface{})}
-
-		// Create Upload controller with mocked DB and prepared Beego controller
-		queryController := &controllers.UploadController{controllers.BaseController{Db: testDb,
-			Controller: queryBeegoController}}
-
+		queryController := getQueryController(extraParams, path, testDb)
 		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
