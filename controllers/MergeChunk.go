@@ -21,7 +21,6 @@ import (
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -206,7 +205,7 @@ func (c *MergeChunkController) Post() {
 	go c.CronGetCheck(requestIdCheck, imageId, filename, userId, storageMedium, saveFileName)
 }
 
-func (c *MergeChunkController) MergeChunk(files []fs.FileInfo, storageMedium string, identifier string, file *os.File) error {
+func (c *MergeChunkController) MergeChunk(files []os.FileInfo, storageMedium string, identifier string, file *os.File) error {
 	totalChunksNum := len(files) //total number of chunks
 	log.Info("The total file chunk number is " + strconv.Itoa(totalChunksNum))
 	for i := 1; i <= totalChunksNum; i++ {
