@@ -38,6 +38,7 @@ import (
 
 var (
 	compressInProgress = "Compress In Progress"
+	compressCompleted  = "compress completed"
 	LocalIp            = "127.0.0.1"
 )
 
@@ -191,7 +192,7 @@ func testAsyCallCompressCompleted(slimController *controllers.SlimController, t 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		responseGetBody := getResponseGetBody(0, "compress completed", 1)
+		responseGetBody := getResponseGetBody(0, compressCompleted, 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -369,7 +370,7 @@ func testAsyCallImageOpsGetCheckErr(slimController *controllers.SlimController, 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		responseGetBody := getResponseGetBody(0, "compress completed", 1)
+		responseGetBody := getResponseGetBody(0, compressCompleted, 1)
 		patch1 := gomonkey.ApplyMethod(reflect.TypeOf(&http.Client{}), "Get", func(client *http.Client, url string) (resp *http.Response, err error) {
 			return &http.Response{Body: responseGetBody}, nil
 		})
@@ -404,7 +405,7 @@ func testCheckResponseInProgress(slimController *controllers.SlimController, t *
 
 		var compressInfo controllers.CompressStatusResponse
 		compressInfo.Status = 0
-		compressInfo.Msg = "compress completed"
+		compressInfo.Msg = compressCompleted
 		compressInfo.Rate = 1
 
 		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
@@ -449,7 +450,7 @@ func testCheckResponseCompleted(slimController *controllers.SlimController, t *t
 
 		var compressInfo controllers.CompressStatusResponse
 		compressInfo.Status = 0
-		compressInfo.Msg = "compress completed"
+		compressInfo.Msg = compressCompleted
 		compressInfo.Rate = 1
 
 		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
@@ -480,7 +481,7 @@ func testCheckResponseElse(slimController *controllers.SlimController, t *testin
 
 		var compressInfo controllers.CompressStatusResponse
 		compressInfo.Status = 0
-		compressInfo.Msg = "compress completed"
+		compressInfo.Msg = compressCompleted
 		compressInfo.Rate = 1
 
 		slimController.CheckResponse(requestId, imageBasicInfo, compressInfo)
@@ -499,7 +500,7 @@ func testCheckResponseEmptyId(slimController *controllers.SlimController, t *tes
 
 		var compressInfo controllers.CompressStatusResponse
 		compressInfo.Status = 0
-		compressInfo.Msg = "compress completed"
+		compressInfo.Msg = compressCompleted
 		compressInfo.Rate = 1
 
 		slimController.CheckResponse("", imageBasicInfo, compressInfo)

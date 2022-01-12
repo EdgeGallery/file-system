@@ -21,6 +21,7 @@ import (
 	"fileSystem/models"
 	"fileSystem/util"
 	log "github.com/sirupsen/logrus"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -122,31 +123,11 @@ func (c *MergeChunkController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to find the file path")
 		return
 	}
-	totalChunksNum := len(files) //total number of chunks
-	log.Info("The total file chunk number is " + strconv.Itoa(totalChunksNum))
-	for i := 1; i <= totalChunksNum; i++ {
-		log.Info("loading " + strconv.Itoa(i) + "th file chunk")
-		tmpFilePath := storageMedium + identifier + "/" + strconv.Itoa(i) + ".part"
-		f, err := os.OpenFile(tmpFilePath, os.O_RDONLY, os.ModePerm)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to open the part file in path")
-			return
-		}
-		b, err := ioutil.ReadAll(f)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to read the part file in path")
-			return
-		}
-		file.Write(b)
-		f.Close()
-		err = os.Remove(tmpFilePath)
-		if err != nil {
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to delete the part file in path")
-			return
-		}
-		log.Info(strconv.Itoa(i) + "th file chunk merge success")
+	err = c.MergeChunk(files, storageMedium, identifier, file)
+	if err != nil {
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to merge part files")
+		return
 	}
-	file.Close()
 
 	log.Info("Chunk files merge finished.")
 	saveFileName := imageId + filename
@@ -208,7 +189,7 @@ func (c *MergeChunkController) Post() {
 	}
 	log.Info("delete temporary file path from: " + storageMedium + identifier + "/")
 
-	uploadResp, err := json.Marshal(map[string]interface{}{
+	uploadResp, _ := json.Marshal(map[string]interface{}{
 		"imageId":       imageId,
 		"fileName":      filename,
 		"uploadTime":    time.Now().Format("2006-01-02 15:04:05"),
@@ -218,13 +199,37 @@ func (c *MergeChunkController) Post() {
 		"checkStatus":   status,
 		"msg":           msg,
 	})
-	if err != nil {
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, "fail to return upload details")
-		return
-	}
 	_, _ = c.Ctx.ResponseWriter.Write(uploadResp)
 
 	log.Info("begin to request to imageOps check with GET")
 	time.Sleep(time.Duration(5) * time.Second)
 	go c.CronGetCheck(requestIdCheck, imageId, filename, userId, storageMedium, saveFileName)
+}
+
+func (c *MergeChunkController) MergeChunk(files []fs.FileInfo, storageMedium string, identifier string, file *os.File) error {
+	totalChunksNum := len(files) //total number of chunks
+	log.Info("The total file chunk number is " + strconv.Itoa(totalChunksNum))
+	for i := 1; i <= totalChunksNum; i++ {
+		log.Info("loading " + strconv.Itoa(i) + "th file chunk")
+		tmpFilePath := storageMedium + identifier + "/" + strconv.Itoa(i) + ".part"
+		f, err := os.OpenFile(tmpFilePath, os.O_RDONLY, os.ModePerm)
+		if err != nil {
+			c.writeErrorResponse("fail to open the part file in path", util.StatusInternalServerError)
+			return err
+		}
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			c.writeErrorResponse("fail to read the part file in path", util.StatusInternalServerError)
+			return err
+		}
+		file.Write(b)
+		f.Close()
+		err = os.Remove(tmpFilePath)
+		if err != nil {
+			c.writeErrorResponse("fail to delete the part file in path", util.StatusInternalServerError)
+		}
+		log.Info(strconv.Itoa(i) + "th file chunk merge success")
+	}
+	file.Close()
+	return nil
 }

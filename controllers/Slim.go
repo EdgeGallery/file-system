@@ -222,32 +222,15 @@ func (c *SlimController) Post() {
 		c.HandleLoggingForError(clientIp, util.StatusNotFound, "fail to query database")
 		return
 	}
-	if imageFileDb.SlimStatus == util.Slimming { //此时镜像正在瘦身 [0,1,2,3]  未瘦身/瘦身中/成功/失败
-		log.Info(util.ImageSlimming)
-		c.Ctx.WriteString(util.ImageSlimming)
-		return
-	}
-
-	if imageFileDb.SlimStatus == util.SlimmedSuccess { //此时镜像已经瘦身
-		log.Info(util.ImageSlimmed)
-		c.Ctx.WriteString(util.ImageSlimmed)
-		return
-	}
 	var imageBasicInfo ImageBasicInfo
 	imageBasicInfo.ImageId = imageId
 	imageBasicInfo.FileName = imageFileDb.FileName
 	imageBasicInfo.UserId = imageFileDb.UserId
 	imageBasicInfo.StorageMedium = imageFileDb.StorageMedium
 	imageBasicInfo.SaveFileName = imageFileDb.SaveFileName
-
-	if imageFileDb.CheckStatus == util.CheckUnsupportedType { //镜像格式不支持瘦身
-		log.Info(util.TypeNotSupport)
-		err := c.InsertOrUpdateCommonRecord(imageBasicInfo, util.SlimFailed) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
-		if err != nil {
-			log.Error(util.FailedToInsertDataToDB)
-			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
-		}
-		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.TypeNotSupport)
+	
+	//check镜像状态：已瘦身、正在瘦身、不支持瘦身，则退出
+	if !c.ImageStatusCheck(imageFileDb, imageBasicInfo, clientIp) {
 		return
 	}
 
@@ -294,6 +277,32 @@ func (c *SlimController) Post() {
 	//异步调用
 	go c.AsyCallImageOps(client, requestIdCompress, clientIp, imageFileDb, imageId)
 
+}
+
+func (c *SlimController) ImageStatusCheck(imageFileDb models.ImageDB, imageBasicInfo ImageBasicInfo, clientIp string) bool {
+	if imageFileDb.SlimStatus == util.Slimming { //此时镜像正在瘦身 [0,1,2,3]  未瘦身/瘦身中/成功/失败
+		log.Info(util.ImageSlimming)
+		c.Ctx.WriteString(util.ImageSlimming)
+		return false
+	}
+
+	if imageFileDb.SlimStatus == util.SlimmedSuccess { //此时镜像已经瘦身
+		log.Info(util.ImageSlimmed)
+		c.Ctx.WriteString(util.ImageSlimmed)
+		return false
+	}
+
+	if imageFileDb.CheckStatus == util.CheckUnsupportedType { //镜像格式不支持瘦身
+		log.Info(util.TypeNotSupport)
+		err := c.InsertOrUpdateCommonRecord(imageBasicInfo, util.SlimFailed) //[0,1,2,3]  未瘦身/瘦身中/成功/失败
+		if err != nil {
+			log.Error(util.FailedToInsertDataToDB)
+			c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.FailToInsertRequestCheck)
+		}
+		c.HandleLoggingForError(clientIp, util.StatusInternalServerError, util.TypeNotSupport)
+		return false
+	}
+	return true
 }
 
 func (c *SlimController) AsyCallImageOps(client *http.Client, requestIdCompress string, clientIp string, imageFileDb models.ImageDB, imageId string) {
