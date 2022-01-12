@@ -79,16 +79,16 @@ func testDownloadPathError(queryController *controllers.DownloadController, t *t
 
 func testDownloadPathOk(queryController *controllers.DownloadController, t *testing.T) {
 	t.Run("testDownloadPathOk", func(t *testing.T) {
-		patch2 := gomonkey.ApplyMethod(reflect.TypeOf(queryController), "PathCheck",
+		patch0 := gomonkey.ApplyMethod(reflect.TypeOf(queryController), "PathCheck",
 			func(_ *controllers.DownloadController, _ string) bool {
 				return true
 			})
-		defer patch2.Reset()
+		defer patch0.Reset()
 
-		patch1 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
+		patch11 := gomonkey.ApplyFunc(util.ValidateSrcAddress, func(_ string) error {
 			return nil
 		})
-		defer patch1.Reset()
+		defer patch11.Reset()
 
 		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Db), "QueryTable",
 			func(_ *MockDb, _ string, _ interface{}, _ string, _ ...interface{}) (num int64, err error) {
@@ -172,16 +172,16 @@ func testDownloadCompressErr(queryController *controllers.DownloadController, t 
 		})
 		defer patch1.Reset()
 
-		patch3 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Db), "QueryTable",
+		patch31 := gomonkey.ApplyMethod(reflect.TypeOf(queryController.Db), "QueryTable",
 			func(_ *MockDb, _ string, _ interface{}, _ string, _ ...interface{}) (num int64, err error) {
 				return 0, nil
 			})
-		defer patch3.Reset()
+		defer patch31.Reset()
 
-		patch4 := gomonkey.ApplyFunc(controllers.CreateDirectory, func(_ string) error {
+		patch42 := gomonkey.ApplyFunc(controllers.CreateDirectory, func(_ string) error {
 			return nil
 		})
-		defer patch4.Reset()
+		defer patch42.Reset()
 
 		patch5 := gomonkey.ApplyFunc(controllers.CopyFile, func(_ string, _ string) (int64, error) {
 			return 0, nil
